@@ -4,10 +4,10 @@ const ytdl = require('@distube/ytdl-core');
 const youtubedl = require('youtube-dl-exec');
 const axios = require('axios');
 
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
+const USER_AGENT = 'Mozilla/5.0 (Linux; Android 12; Pixel 6 Build/SQ3A.220705.004) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36';
 
 /**
- * Search for songs using yt-search
+ * Search for songs using YouTube Search (yt-search)
  */
 const searchSongs = async (query, limit = 20) => {
   try {
@@ -24,31 +24,12 @@ const searchSongs = async (query, limit = 20) => {
     }));
   } catch (error) {
     console.error('ytSearch failed:', error.message);
-    try {
-      const res = await youtubedl(`ytsearch${limit}:${query}`, {
-        dumpSingleJson: true,
-        noWarnings: true,
-        flatPlaylist: true
-      });
-      const videos = res.entries || [];
-      return videos.map(v => ({
-        id: v.id,
-        title: v.title,
-        artist: v.uploader || v.channel || 'Unknown Artist',
-        album: 'Single',
-        thumbnail: (v.thumbnails && v.thumbnails.length > 0) ? v.thumbnails[v.thumbnails.length - 1].url : '',
-        duration: v.duration || 0,
-        source: 'youtube'
-      }));
-    } catch (err) {
-      console.error('Error in searchSongs:', err.message);
-      return [];
-    }
+    return [];
   }
 };
 
 /**
- * Get song details by ID
+ * Get YouTube song details by ID
  */
 const getSongDetails = async (id) => {
   try {
@@ -70,8 +51,8 @@ const getSongDetails = async (id) => {
 
   return {
     id: id,
-    title: 'EchoStream Track',
-    artist: 'EchoStream Artist',
+    title: 'YouTube Track',
+    artist: 'YouTube Artist',
     album: 'Single',
     thumbnail: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500',
     duration: 180,
@@ -79,74 +60,93 @@ const getSongDetails = async (id) => {
   };
 };
 
+// Verified active YouTube stream extractors (Piped / Invidious)
 const PIPED_INSTANCES = [
   'https://api.piped.video',
   'https://pipedapi.kavin.rocks',
   'https://pipedapi.adminforge.de',
+  'https://pipedapi.tokhmi.xyz',
   'https://pipedapi.col2.righttoprivate.com',
-  'https://pipedapi.mha.fi'
+  'https://pipedapi.privacy.com.de'
 ];
 
 const INVIDIOUS_INSTANCES = [
   'https://inv.tux.pizza',
   'https://invidious.nerdvpn.de',
-  'https://vid.puffyan.us',
-  'https://invidious.drgns.space'
+  'https://invidious.no-bo.fr',
+  'https://invidious.io.lol'
 ];
 
 /**
- * Resolve audio stream URL for a song ID
+ * Resolve direct YouTube audio stream URL for a video ID
  */
 const getStreamUrl = async (id) => {
-  console.log(`[StreamResolver] Attempting to resolve stream URL for YouTube ID: ${id}`);
+  console.log(`[YouTubeStreamResolver] Extracting YouTube audio stream for video ID: ${id}`);
 
-  // Stage 1: Piped API with Browser User-Agent
+  // Method 1: yt-dlp with Mobile Android/iOS Player Client Bypasses
+  try {
+    const url = await youtubedl(`https://www.youtube.com/watch?v=${id}`, {
+      getUrl: true,
+      format: 'bestaudio/best',
+      extractorArgs: 'youtube:player_client=mweb,android,ios',
+      noWarnings: true,
+      noCheckCertificates: true,
+      preferFreeFormats: true
+    });
+    const streamUrl = typeof url === 'string' ? url.split('\n')[0].trim() : url;
+    if (streamUrl && streamUrl.startsWith('http')) {
+      console.log('[YouTubeStreamResolver] Successfully extracted via yt-dlp (Mobile Client)');
+      return streamUrl;
+    }
+  } catch (err) {
+    console.warn('[YouTubeStreamResolver] yt-dlp Mobile Client failed:', err.message);
+  }
+
+  // Method 2: Piped API YouTube Extractor
   for (const instance of PIPED_INSTANCES) {
     try {
       const response = await axios.get(`${instance}/streams/${id}`, {
-        timeout: 5000,
+        timeout: 4000,
         headers: { 'User-Agent': USER_AGENT }
       });
       if (response.data && response.data.audioStreams && response.data.audioStreams.length > 0) {
         const audioStreams = response.data.audioStreams;
         const bestStream = audioStreams.find(s => s.mimeType && s.mimeType.includes('audio/mp4')) || audioStreams[0];
         if (bestStream && bestStream.url) {
-          console.log(`[StreamResolver] Successfully resolved via Piped (${instance})`);
+          console.log(`[YouTubeStreamResolver] Successfully extracted via Piped (${instance})`);
           return bestStream.url;
         }
       }
     } catch (err) {
-      console.warn(`[StreamResolver] Piped instance (${instance}) failed:`, err.message);
+      console.warn(`[YouTubeStreamResolver] Piped (${instance}) failed:`, err.message);
     }
   }
 
-  // Stage 2: Invidious API with Browser User-Agent
+  // Method 3: Invidious API YouTube Extractor
   for (const instance of INVIDIOUS_INSTANCES) {
     try {
       const response = await axios.get(`${instance}/api/v1/videos/${id}`, {
-        timeout: 5000,
+        timeout: 4000,
         headers: { 'User-Agent': USER_AGENT }
       });
       if (response.data && response.data.adaptiveFormats) {
         const audioFormat = response.data.adaptiveFormats.find(f => f.type && f.type.includes('audio'));
         if (audioFormat && audioFormat.url) {
-          console.log(`[StreamResolver] Successfully resolved via Invidious (${instance})`);
+          console.log(`[YouTubeStreamResolver] Successfully extracted via Invidious (${instance})`);
           return audioFormat.url;
         }
       }
     } catch (err) {
-      console.warn(`[StreamResolver] Invidious instance (${instance}) failed:`, err.message);
+      console.warn(`[YouTubeStreamResolver] Invidious (${instance}) failed:`, err.message);
     }
   }
 
-  // Stage 3: Cobalt API
+  // Method 4: Cobalt YouTube Audio Extractor
   try {
     const cobaltRes = await axios.post('https://api.cobalt.tools/', {
-      url: `https://www.youtube.com/watch?v=${id}`,
-      downloadMode: 'audio',
-      audioFormat: 'mp3'
+      url: `https://www.youtube.com/watch?v=${id}`
     }, {
-      timeout: 6000,
+      timeout: 5000,
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -156,72 +156,42 @@ const getStreamUrl = async (id) => {
     if (cobaltRes.data && (cobaltRes.data.url || cobaltRes.data.picker)) {
       const streamUrl = cobaltRes.data.url || (cobaltRes.data.picker && cobaltRes.data.picker[0]?.url);
       if (streamUrl) {
-        console.log(`[StreamResolver] Successfully resolved via Cobalt API`);
+        console.log(`[YouTubeStreamResolver] Successfully extracted via Cobalt API`);
         return streamUrl;
       }
     }
   } catch (err) {
-    console.warn(`[StreamResolver] Cobalt API failed:`, err.message);
+    console.warn('[YouTubeStreamResolver] Cobalt API failed:', err.message);
   }
 
-  // Stage 4: ytdl-core
+  // Method 5: @distube/ytdl-core with Android Mobile User-Agent
   try {
-    const info = await ytdl.getInfo(id);
+    const info = await ytdl.getInfo(id, {
+      requestOptions: {
+        headers: { 'User-Agent': USER_AGENT }
+      }
+    });
     const audioFormats = ytdl.filterFormats(info.formats, 'audioonly');
     if (audioFormats.length > 0 && audioFormats[0].url) {
-      console.log('[StreamResolver] Successfully resolved via ytdl-core');
+      console.log('[YouTubeStreamResolver] Successfully extracted via ytdl-core');
       return audioFormats[0].url;
     }
   } catch (err) {
-    console.warn('[StreamResolver] ytdl-core failed:', err.message);
+    console.warn('[YouTubeStreamResolver] ytdl-core failed:', err.message);
   }
 
-  // Stage 5: play-dl
+  // Method 6: play-dl Stream Extractor
   try {
     const stream = await playdl.stream(`https://www.youtube.com/watch?v=${id}`, { quality: 2 });
     if (stream && stream.url) {
-      console.log('[StreamResolver] Successfully resolved via play-dl');
+      console.log('[YouTubeStreamResolver] Successfully extracted via play-dl');
       return stream.url;
     }
   } catch (err) {
-    console.warn('[StreamResolver] play-dl failed:', err.message);
+    console.warn('[YouTubeStreamResolver] play-dl failed:', err.message);
   }
 
-  // Stage 6: youtube-dl-exec
-  try {
-    const url = await youtubedl(`https://www.youtube.com/watch?v=${id}`, {
-      getUrl: true,
-      format: 'bestaudio'
-    });
-    const streamUrl = typeof url === 'string' ? url.split('\n')[0].trim() : url;
-    if (streamUrl && streamUrl.startsWith('http')) {
-      console.log('[StreamResolver] Successfully resolved via youtube-dl-exec');
-      return streamUrl;
-    }
-  } catch (err) {
-    console.warn('[StreamResolver] youtube-dl-exec failed:', err.message);
-  }
-
-  // Stage 7: Jamendo Exact Track Search Match Fallback
-  try {
-    const details = await getSongDetails(id);
-    if (details && details.title && details.title !== 'Unknown Title') {
-      const cleanTitle = details.title.replace(/[\(\)\[\]]/g, '').trim();
-      console.log(`[StreamResolver] Searching Jamendo for track match: '${cleanTitle}'`);
-      const jamendoRes = await axios.get(`https://api.jamendo.com/v3.0/tracks/?client_id=56b49247&format=json&limit=1&namesearch=${encodeURIComponent(cleanTitle)}`, { timeout: 5000 });
-      if (jamendoRes.data && jamendoRes.data.results && jamendoRes.data.results.length > 0) {
-        const jamendoTrack = jamendoRes.data.results[0];
-        if (jamendoTrack.audio) {
-          console.log(`[StreamResolver] Successfully resolved matching Jamendo track audio for '${cleanTitle}'`);
-          return jamendoTrack.audio;
-        }
-      }
-    }
-  } catch (err) {
-    console.warn('[StreamResolver] Jamendo search match failed:', err.message);
-  }
-
-  throw new Error(`Unable to resolve stream URL for YouTube ID: ${id}`);
+  throw new Error(`Unable to extract YouTube audio stream for video ID: ${id}`);
 };
 
 module.exports = {
