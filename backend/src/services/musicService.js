@@ -4,8 +4,10 @@ const ytdl = require('@distube/ytdl-core');
 const youtubedl = require('youtube-dl-exec');
 const axios = require('axios');
 
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36';
+
 /**
- * Search for songs using yt-search (lightweight, non-blocking)
+ * Search for songs using yt-search
  */
 const searchSongs = async (query, limit = 20) => {
   try {
@@ -21,7 +23,7 @@ const searchSongs = async (query, limit = 20) => {
       source: 'youtube'
     }));
   } catch (error) {
-    console.error('ytSearch failed, falling back to youtube-dl-exec:', error.message);
+    console.error('ytSearch failed:', error.message);
     try {
       const res = await youtubedl(`ytsearch${limit}:${query}`, {
         dumpSingleJson: true,
@@ -77,9 +79,6 @@ const getSongDetails = async (id) => {
   };
 };
 
-/**
- * List of Piped API instances (rotates proxy backends)
- */
 const PIPED_INSTANCES = [
   'https://api.piped.video',
   'https://pipedapi.kavin.rocks',
@@ -88,25 +87,26 @@ const PIPED_INSTANCES = [
   'https://pipedapi.mha.fi'
 ];
 
-/**
- * List of Invidious API instances
- */
 const INVIDIOUS_INSTANCES = [
   'https://inv.tux.pizza',
   'https://invidious.nerdvpn.de',
-  'https://vid.puffyan.us'
+  'https://vid.puffyan.us',
+  'https://invidious.drgns.space'
 ];
 
 /**
- * Resolve audio stream URL with multi-stage fallbacks
+ * Resolve audio stream URL for a song ID
  */
 const getStreamUrl = async (id) => {
   console.log(`[StreamResolver] Attempting to resolve stream URL for YouTube ID: ${id}`);
 
-  // Stage 1: Piped API
+  // Stage 1: Piped API with Browser User-Agent
   for (const instance of PIPED_INSTANCES) {
     try {
-      const response = await axios.get(`${instance}/streams/${id}`, { timeout: 4000 });
+      const response = await axios.get(`${instance}/streams/${id}`, {
+        timeout: 5000,
+        headers: { 'User-Agent': USER_AGENT }
+      });
       if (response.data && response.data.audioStreams && response.data.audioStreams.length > 0) {
         const audioStreams = response.data.audioStreams;
         const bestStream = audioStreams.find(s => s.mimeType && s.mimeType.includes('audio/mp4')) || audioStreams[0];
@@ -120,10 +120,13 @@ const getStreamUrl = async (id) => {
     }
   }
 
-  // Stage 2: Invidious API
+  // Stage 2: Invidious API with Browser User-Agent
   for (const instance of INVIDIOUS_INSTANCES) {
     try {
-      const response = await axios.get(`${instance}/api/v1/videos/${id}`, { timeout: 4000 });
+      const response = await axios.get(`${instance}/api/v1/videos/${id}`, {
+        timeout: 5000,
+        headers: { 'User-Agent': USER_AGENT }
+      });
       if (response.data && response.data.adaptiveFormats) {
         const audioFormat = response.data.adaptiveFormats.find(f => f.type && f.type.includes('audio'));
         if (audioFormat && audioFormat.url) {
@@ -136,7 +139,32 @@ const getStreamUrl = async (id) => {
     }
   }
 
-  // Stage 3: ytdl-core
+  // Stage 3: Cobalt API
+  try {
+    const cobaltRes = await axios.post('https://api.cobalt.tools/', {
+      url: `https://www.youtube.com/watch?v=${id}`,
+      downloadMode: 'audio',
+      audioFormat: 'mp3'
+    }, {
+      timeout: 6000,
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'User-Agent': USER_AGENT
+      }
+    });
+    if (cobaltRes.data && (cobaltRes.data.url || cobaltRes.data.picker)) {
+      const streamUrl = cobaltRes.data.url || (cobaltRes.data.picker && cobaltRes.data.picker[0]?.url);
+      if (streamUrl) {
+        console.log(`[StreamResolver] Successfully resolved via Cobalt API`);
+        return streamUrl;
+      }
+    }
+  } catch (err) {
+    console.warn(`[StreamResolver] Cobalt API failed:`, err.message);
+  }
+
+  // Stage 4: ytdl-core
   try {
     const info = await ytdl.getInfo(id);
     const audioFormats = ytdl.filterFormats(info.formats, 'audioonly');
@@ -148,7 +176,7 @@ const getStreamUrl = async (id) => {
     console.warn('[StreamResolver] ytdl-core failed:', err.message);
   }
 
-  // Stage 4: play-dl
+  // Stage 5: play-dl
   try {
     const stream = await playdl.stream(`https://www.youtube.com/watch?v=${id}`, { quality: 2 });
     if (stream && stream.url) {
@@ -159,7 +187,7 @@ const getStreamUrl = async (id) => {
     console.warn('[StreamResolver] play-dl failed:', err.message);
   }
 
-  // Stage 5: youtube-dl-exec
+  // Stage 6: youtube-dl-exec
   try {
     const url = await youtubedl(`https://www.youtube.com/watch?v=${id}`, {
       getUrl: true,
@@ -174,9 +202,26 @@ const getStreamUrl = async (id) => {
     console.warn('[StreamResolver] youtube-dl-exec failed:', err.message);
   }
 
-  // Stage 6: Fallback direct playable audio URL so player never crashes
-  console.log('[StreamResolver] All YouTube extractors failed on EC2. Returning fallback audio stream.');
-  return 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3';
+  // Stage 7: Jamendo Exact Track Search Match Fallback
+  try {
+    const details = await getSongDetails(id);
+    if (details && details.title && details.title !== 'Unknown Title') {
+      const cleanTitle = details.title.replace(/[\(\)\[\]]/g, '').trim();
+      console.log(`[StreamResolver] Searching Jamendo for track match: '${cleanTitle}'`);
+      const jamendoRes = await axios.get(`https://api.jamendo.com/v3.0/tracks/?client_id=56b49247&format=json&limit=1&namesearch=${encodeURIComponent(cleanTitle)}`, { timeout: 5000 });
+      if (jamendoRes.data && jamendoRes.data.results && jamendoRes.data.results.length > 0) {
+        const jamendoTrack = jamendoRes.data.results[0];
+        if (jamendoTrack.audio) {
+          console.log(`[StreamResolver] Successfully resolved matching Jamendo track audio for '${cleanTitle}'`);
+          return jamendoTrack.audio;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[StreamResolver] Jamendo search match failed:', err.message);
+  }
+
+  throw new Error(`Unable to resolve stream URL for YouTube ID: ${id}`);
 };
 
 module.exports = {

@@ -80,11 +80,6 @@ class PlayerManager private constructor(private val context: Context) {
                         } catch (e: Exception) {
                             Log.e("PlayerManager", "Error resolving stream URL for songId: $songId", e)
                         }
-
-                        if (uri.toString().startsWith("resolve://")) {
-                            Log.w("PlayerManager", "Stream resolution fallback triggered for $songId")
-                            uri = Uri.parse("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3")
-                        }
                     }
                     return dataSpec.withUri(uri)
                 }
