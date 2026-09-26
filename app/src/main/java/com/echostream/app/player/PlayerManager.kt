@@ -21,6 +21,7 @@ import com.echostream.app.data.model.Song
 import com.echostream.app.utils.Constants
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
+import com.google.gson.JsonParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -31,6 +32,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
 
 @OptIn(UnstableApi::class)
 class PlayerManager private constructor(private val context: Context) {
@@ -79,6 +83,39 @@ class PlayerManager private constructor(private val context: Context) {
                             }
                         } catch (e: Exception) {
                             Log.e("PlayerManager", "Error resolving stream URL for songId: $songId", e)
+                        }
+
+                        if (uri.toString().startsWith("resolve://")) {
+                            Log.w("PlayerManager", "Backend stream resolution failed for $songId, attempting direct Piped fallback")
+                            try {
+                                val client = OkHttpClient.Builder()
+                                    .connectTimeout(5, TimeUnit.SECONDS)
+                                    .readTimeout(5, TimeUnit.SECONDS)
+                                    .build()
+                                val pipedUrl = "https://api.piped.video/streams/$songId"
+                                val request = Request.Builder()
+                                    .url(pipedUrl)
+                                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                                    .build()
+                                val clientResponse = client.newCall(request).execute()
+                                if (clientResponse.isSuccessful) {
+                                    val jsonStr = clientResponse.body?.string()
+                                    if (!jsonStr.isNullOrEmpty()) {
+                                        val jsonObj = JsonParser.parseString(jsonStr).asJsonObject
+                                        val audioStreams = jsonObj.getAsJsonArray("audioStreams")
+                                        if (audioStreams != null && audioStreams.size() > 0) {
+                                            val streamObj = audioStreams.get(0).asJsonObject
+                                            val streamUrl = streamObj.get("url")?.asString
+                                            if (!streamUrl.isNullOrEmpty()) {
+                                                Log.d("PlayerManager", "Successfully resolved via direct Piped client fallback: $streamUrl")
+                                                uri = Uri.parse(streamUrl)
+                                            }
+                                        }
+                                    }
+                                }
+                            } catch (fallbackError: Exception) {
+                                Log.e("PlayerManager", "Direct Piped fallback failed for $songId", fallbackError)
+                            }
                         }
                     }
                     return dataSpec.withUri(uri)
@@ -186,6 +223,8 @@ class PlayerManager private constructor(private val context: Context) {
                 for (s in playlist) {
                     val audioUriString = if (s.isDownloaded && !s.localFilePath.isNullOrEmpty()) {
                         s.localFilePath
+                    } else if (s.audioUrl.isNotEmpty() && !s.audioUrl.startsWith("resolve://")) {
+                        s.audioUrl
                     } else {
                         "resolve://${s.id}"
                     }
