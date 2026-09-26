@@ -79,7 +79,8 @@ class PlayerViewModel(
     fun toggleLike() {
         val song = currentSong.value ?: return
         viewModelScope.launch {
-            musicRepository.toggleLike(song)
+            val newState = musicRepository.toggleLike(song)
+            playerManager.updateCurrentSong(song.copy(isLiked = newState))
         }
     }
 

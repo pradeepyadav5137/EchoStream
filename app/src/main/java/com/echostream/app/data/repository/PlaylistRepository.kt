@@ -27,7 +27,11 @@ class PlaylistRepository(
     }
 
     fun getPlaylists(): Flow<List<Playlist>> {
-        return playlistDao.getAllPlaylists().map { entities ->
+        return combine(
+            playlistDao.getAllPlaylists(),
+            playlistDao.getAllPlaylistSongs()
+        ) { entities, playlistSongs ->
+            val songCountMap = playlistSongs.groupBy { it.playlistId }.mapValues { it.value.map { ps -> ps.songId } }
             entities.map { entity ->
                 Playlist(
                     id = entity.id,
@@ -35,6 +39,7 @@ class PlaylistRepository(
                     name = entity.name,
                     description = entity.description,
                     artworkUrl = entity.artworkUrl,
+                    songIds = songCountMap[entity.id] ?: emptyList(),
                     isPublic = entity.isPublic,
                     updatedAt = entity.updatedAt
                 )

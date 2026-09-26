@@ -138,6 +138,10 @@ class PlayerManager private constructor(private val context: Context) {
     private val _currentSong = MutableStateFlow<Song?>(null)
     val currentSong: StateFlow<Song?> = _currentSong.asStateFlow()
 
+    fun updateCurrentSong(song: Song) {
+        _currentSong.value = song
+    }
+
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 

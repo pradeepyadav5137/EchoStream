@@ -23,6 +23,10 @@ class SearchViewModel(private val musicRepository: MusicRepository) : ViewModel(
 
     private var searchJob: Job? = null
 
+    init {
+        onQueryChange("punjabi hindi mix")
+    }
+
     private var currentPage = 1
     private var hasMore = true
 
@@ -73,7 +77,10 @@ class SearchViewModel(private val musicRepository: MusicRepository) : ViewModel(
 
     fun toggleLike(song: Song) {
         viewModelScope.launch {
-            musicRepository.toggleLike(song)
+            val newState = musicRepository.toggleLike(song)
+            _searchResults.value = _searchResults.value.map { 
+                if (it.id == song.id) it.copy(isLiked = newState) else it 
+            }
         }
     }
 }
