@@ -2,6 +2,7 @@ package com.echostream.app.player
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -10,10 +11,14 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.echostream.app.data.api.NetworkClient
 import com.echostream.app.data.model.Song
+import com.echostream.app.utils.Constants
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
 import kotlinx.coroutines.CoroutineScope
@@ -25,16 +30,30 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 @OptIn(UnstableApi::class)
 class PlayerManager private constructor(private val context: Context) {
 
     val player: ExoPlayer
+    @Volatile
+    private var currentBaseUrl: String = Constants.DEFAULT_BASE_URL
 
-    // We can't easily inject ResolvingDataSource globally into ExoPlayer without custom DefaultMediaSourceFactory.
-    // So we provide it in the ExoPlayer.Builder.
+    fun updateBaseUrl(newUrl: String) {
+        if (newUrl.isNotBlank()) {
+            currentBaseUrl = newUrl
+        }
+    }
+
     init {
-        val dataSourceFactory = androidx.media3.datasource.DefaultDataSource.Factory(context)
+        val httpDataSourceFactory = DefaultHttpDataSource.Factory()
+            .setUserAgent("Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+            .setAllowCrossProtocolRedirects(true)
+            .setConnectTimeoutMs(15000)
+            .setReadTimeoutMs(15000)
+
+        val dataSourceFactory = DefaultDataSource.Factory(context, httpDataSourceFactory)
+        
         val resolvingDataSourceFactory = androidx.media3.datasource.ResolvingDataSource.Factory(
             dataSourceFactory,
             object : androidx.media3.datasource.ResolvingDataSource.Resolver {
@@ -44,18 +63,27 @@ class PlayerManager private constructor(private val context: Context) {
                     if (uriString.startsWith("resolve://")) {
                         val songId = uriString.removePrefix("resolve://")
                         try {
-                            // This is called on a background thread by ExoPlayer
-                            val service = com.echostream.app.data.api.NetworkClient.getEchoStreamService(context)
-                            // We need to run it synchronously or blocking
-                            val response = kotlinx.coroutines.runBlocking { service.getStreamUrl(songId) }
+                            Log.d("PlayerManager", "Fetching stream for songId: $songId using baseUrl: $currentBaseUrl")
+                            val service = NetworkClient.getEchoStreamService(context, currentBaseUrl)
+                            val response = runBlocking { service.getStreamUrl(songId) }
                             if (response.isSuccessful) {
                                 val url = response.body()?.get("url") as? String
                                 if (!url.isNullOrEmpty()) {
+                                    Log.d("PlayerManager", "Successfully resolved stream URL: $url")
                                     uri = Uri.parse(url)
+                                } else {
+                                    Log.e("PlayerManager", "Stream response contained no URL for songId: $songId")
                                 }
+                            } else {
+                                Log.e("PlayerManager", "Failed to resolve stream. HTTP Code: ${response.code()}")
                             }
                         } catch (e: Exception) {
-                            e.printStackTrace()
+                            Log.e("PlayerManager", "Error resolving stream URL for songId: $songId", e)
+                        }
+
+                        if (uri.toString().startsWith("resolve://")) {
+                            Log.w("PlayerManager", "Stream resolution fallback triggered for $songId")
+                            uri = Uri.parse("https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3")
                         }
                     }
                     return dataSpec.withUri(uri)

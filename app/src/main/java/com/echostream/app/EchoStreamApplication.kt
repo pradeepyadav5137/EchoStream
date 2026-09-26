@@ -44,8 +44,13 @@ class EchoStreamApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
+        val prefs = getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
+        currentBaseUrl = prefs.getString(Constants.KEY_BASE_URL, Constants.DEFAULT_BASE_URL) ?: Constants.DEFAULT_BASE_URL
+
         database = AppDatabase.getDatabase(this)
-        playerManager = PlayerManager.getInstance(this)
+        playerManager = PlayerManager.getInstance(this).apply {
+            updateBaseUrl(currentBaseUrl)
+        }
         networkMonitor = NetworkMonitor(this)
 
         val echoStreamApi = NetworkClient.getEchoStreamService(this, currentBaseUrl)
@@ -86,6 +91,12 @@ class EchoStreamApplication : Application() {
 
     fun updateBaseUrl(newUrl: String) {
         currentBaseUrl = newUrl
+        getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
+            .edit()
+            .putString(Constants.KEY_BASE_URL, newUrl)
+            .apply()
+
+        playerManager.updateBaseUrl(newUrl)
         val newApi = NetworkClient.getEchoStreamService(this, newUrl)
         authRepository.updateApiService(newApi)
         musicRepository.updateApiService(newApi)

@@ -1,8 +1,8 @@
 package com.echostream.app.utils
 
 object Constants {
-    // Default base URL for Android Emulator -> Node.js backend
-    const val DEFAULT_BASE_URL = "http://10.0.2.2:5000"
+    // Default base URL pointing to hosted EC2 backend
+    const val DEFAULT_BASE_URL = "http://16.4.39.184"
     
     // Default Jamendo Client ID
     const val JAMENDO_CLIENT_ID = "56b49247"
