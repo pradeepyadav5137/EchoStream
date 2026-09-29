@@ -53,11 +53,17 @@ import com.echostream.app.ui.theme.TextMuted
 import com.echostream.app.ui.theme.TextPrimary
 import com.echostream.app.ui.theme.TextSecondary
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 @Composable
 fun ProfileScreen(
     currentUser: User?,
     isOnline: Boolean,
     currentBaseUrl: String,
+    totalTime: Int,
+    todayTime: Int,
+    mostPlayedSong: com.echostream.app.data.model.Song?,
     onPerformSync: () -> Unit,
     onUpdateBaseUrl: (String) -> Unit,
     onLogout: () -> Unit
@@ -69,19 +75,19 @@ fun ProfileScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(BackgroundDark)
-            .padding(16.dp),
+            .padding(16.dp)
+            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Profile Avatar
+        // Profile Avatar - Cute Boy with Headphones
         AsyncImage(
-            model = currentUser?.avatarUrl?.ifEmpty { "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500" }
-                ?: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500",
+            model = com.echostream.app.R.drawable.profile_boy,
             contentDescription = "Avatar",
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(100.dp)
+                .size(120.dp)
                 .clip(CircleShape)
         )
 
@@ -89,19 +95,50 @@ fun ProfileScreen(
 
         Text(
             text = currentUser?.displayName?.ifEmpty { currentUser.username } ?: "EchoStream Listener",
-            style = MaterialTheme.typography.headlineMedium.copy(fontSize = 22.sp, fontWeight = FontWeight.Bold),
+            style = MaterialTheme.typography.headlineMedium.copy(fontSize = 24.sp, fontWeight = FontWeight.Bold),
             color = TextPrimary
         )
 
         Text(
             text = currentUser?.email ?: "guest@echostream.com",
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyLarge,
             color = TextMuted
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
-        // Cloud Synchronization Card
+        // Stats Row in a Card
+        Card(
+            colors = CardDefaults.cardColors(containerColor = CardBackground),
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "${(totalTime / 60)}m", style = MaterialTheme.typography.headlineMedium, color = PrimaryViolet, fontWeight = FontWeight.Bold)
+                    Text(text = "Total Time", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text = "${(todayTime / 60)}m", style = MaterialTheme.typography.headlineMedium, color = PrimaryViolet, fontWeight = FontWeight.Bold)
+                    Text(text = "Today", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = mostPlayedSong?.title?.take(10)?.let { if (it.length == 10) "$it..." else it } ?: "-",
+                        style = MaterialTheme.typography.headlineMedium, color = PrimaryViolet, fontWeight = FontWeight.Bold
+                    )
+                    Text(text = "Most Played", style = MaterialTheme.typography.bodyMedium, color = TextMuted)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
         Card(
             colors = CardDefaults.cardColors(containerColor = CardBackground),
             shape = RoundedCornerShape(16.dp),

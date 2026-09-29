@@ -85,7 +85,8 @@ class EchoStreamApplication : Application() {
 
         downloadRepository = DownloadRepository(
             context = this,
-            downloadDao = database.downloadDao()
+            downloadDao = database.downloadDao(),
+            echoStreamApi = echoStreamApi
         )
     }
 
@@ -102,5 +103,6 @@ class EchoStreamApplication : Application() {
         musicRepository.updateApiService(newApi)
         playlistRepository.updateApiService(newApi)
         syncRepository.updateApiService(newApi)
+        downloadRepository.updateApiService(newApi)
     }
 }

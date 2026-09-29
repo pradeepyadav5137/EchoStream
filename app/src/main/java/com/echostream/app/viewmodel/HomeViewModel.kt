@@ -20,6 +20,10 @@ class HomeViewModel(private val musicRepository: MusicRepository) : ViewModel() 
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading
 
+    val totalListeningTime: StateFlow<Int> = MutableStateFlow(0)
+    val todayListeningTime: StateFlow<Int> = MutableStateFlow(0)
+    val mostPlayedSong: StateFlow<Song?> = MutableStateFlow(null)
+
     init {
         viewModelScope.launch {
             _isLoading.value = true
@@ -40,10 +44,46 @@ class HomeViewModel(private val musicRepository: MusicRepository) : ViewModel() 
                 (allSongs as MutableStateFlow).value = songs
                 (trendingSongs as MutableStateFlow).value = songs.filter { it.isTrending || it.likeCount > 3000 }
                 (recentlyPlayed as MutableStateFlow).value = history
-                (recommendedSongs as MutableStateFlow).value = musicRepository.getRecommendations(songs, likes, history)
             }
                 .catch { }
                 .collect {}
+        }
+        
+        viewModelScope.launch {
+            musicRepository.getRecommendedSections().collect { sections ->
+                val songs = mutableListOf<Song>()
+                sections.forEach { section ->
+                    val sectionSongs = section["songs"] as? List<Song>
+                    if (sectionSongs != null) {
+                        songs.addAll(sectionSongs)
+                    }
+                }
+                (recommendedSongs as MutableStateFlow).value = songs
+            }
+        }
+
+        viewModelScope.launch {
+            musicRepository.getTotalListeningTime().collect { total ->
+                (totalListeningTime as MutableStateFlow).value = total ?: 0
+            }
+        }
+
+        viewModelScope.launch {
+            val startOfDay = java.util.Calendar.getInstance().apply {
+                set(java.util.Calendar.HOUR_OF_DAY, 0)
+                set(java.util.Calendar.MINUTE, 0)
+                set(java.util.Calendar.SECOND, 0)
+                set(java.util.Calendar.MILLISECOND, 0)
+            }.timeInMillis
+            musicRepository.getTodayListeningTime(startOfDay).collect { today ->
+                (todayListeningTime as MutableStateFlow).value = today ?: 0
+            }
+        }
+
+        viewModelScope.launch {
+            musicRepository.getMostPlayedSong().collect { entity ->
+                (mostPlayedSong as MutableStateFlow).value = entity?.toSong(isLiked = false, isDownloaded = false, localFilePath = null)
+            }
         }
     }
 

@@ -160,8 +160,8 @@ class PlayerManager private constructor(private val context: Context) {
     private val _isShuffle = MutableStateFlow(false)
     val isShuffle: StateFlow<Boolean> = _isShuffle.asStateFlow()
 
-    private val _isRepeat = MutableStateFlow(false)
-    val isRepeat: StateFlow<Boolean> = _isRepeat.asStateFlow()
+    private val _repeatMode = MutableStateFlow(Player.REPEAT_MODE_OFF)
+    val repeatMode: StateFlow<Int> = _repeatMode.asStateFlow()
 
     private val _showFullPlayer = MutableStateFlow(false)
     val showFullPlayer: StateFlow<Boolean> = _showFullPlayer.asStateFlow()
@@ -226,7 +226,7 @@ class PlayerManager private constructor(private val context: Context) {
 
                 for (s in playlist) {
                     val audioUriString = if (s.isDownloaded && !s.localFilePath.isNullOrEmpty()) {
-                        s.localFilePath
+                        if (s.localFilePath.startsWith("file://")) s.localFilePath else "file://${s.localFilePath}"
                     } else if (s.audioUrl.isNotEmpty() && !s.audioUrl.startsWith("resolve://")) {
                         s.audioUrl
                     } else {
@@ -334,9 +334,13 @@ class PlayerManager private constructor(private val context: Context) {
     }
 
     fun toggleRepeat() {
-        val next = !_isRepeat.value
-        _isRepeat.value = next
-        player.repeatMode = if (next) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
+        val next = when (_repeatMode.value) {
+            Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
+            Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
+            else -> Player.REPEAT_MODE_OFF
+        }
+        _repeatMode.value = next
+        player.repeatMode = next
     }
 
     fun setFullPlayerVisible(visible: Boolean) {

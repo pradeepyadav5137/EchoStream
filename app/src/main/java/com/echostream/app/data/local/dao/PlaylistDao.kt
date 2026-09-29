@@ -42,4 +42,10 @@ interface PlaylistDao {
         ORDER BY ps.addedAt ASC
     """)
     fun getSongsForPlaylist(playlistId: String): Flow<List<SongEntity>>
+
+    @Query("DELETE FROM playlists")
+    suspend fun clearAllPlaylists()
+
+    @Query("DELETE FROM playlist_songs")
+    suspend fun clearAllPlaylistSongs()
 }

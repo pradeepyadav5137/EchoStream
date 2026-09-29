@@ -8,8 +8,11 @@ const historySchema = new mongoose.Schema({
   album: { type: String, default: 'Unknown Album' },
   thumbnail: { type: String, default: '' },
   duration: { type: Number, default: 0 },
-  source: { type: String, default: 'youtube' },
+  source: { type: String, default: 'jiosaavn' },
   playedAt: { type: Date, default: Date.now }
 });
+
+historySchema.index({ userId: 1, playedAt: -1 });
+historySchema.index({ userId: 1, songId: 1 });
 
 module.exports = mongoose.model('History', historySchema);

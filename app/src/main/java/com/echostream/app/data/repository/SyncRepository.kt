@@ -28,10 +28,99 @@ class SyncRepository(
 
     suspend fun performSync(): Result<String> {
         return try {
-            pendingSyncDao.clearAll()
+            // 1. Process pending offline actions
+            val pendingActions = pendingSyncDao.getAllPendingActions()
+            for (action in pendingActions) {
+                try {
+                    val mapType = object : TypeToken<Map<String, Any>>() {}.type
+                    val payload: Map<String, Any> = gson.fromJson(action.payloadJson, mapType)
+
+                    when (action.type) {
+                        "LIKE" -> {
+                            val songId = payload["songId"] as? String
+                            if (songId != null) {
+                                echoStreamApi.addFavorite(songId, payload)
+                            }
+                        }
+                        "UNLIKE" -> {
+                            val songId = payload["songId"] as? String
+                            if (songId != null) {
+                                echoStreamApi.removeFavorite(songId)
+                            }
+                        }
+                        "HISTORY" -> {
+                            echoStreamApi.addHistory(payload)
+                        }
+                        // Add more as needed (e.g. PLAYLIST_CREATE, PLAYLIST_ADD_SONG)
+                    }
+                    // Delete if successful
+                    pendingSyncDao.deletePendingAction(action.id)
+                } catch (e: Exception) {
+                    // Skip and try again later
+                }
+            }
             
-            // Sync logic could go here to pull from /api/favorites, /api/playlists etc.
-            // For now, return success.
+            // 2. Fetch remote state to ensure consistency across devices
+            try {
+                // Fetch Favorites
+                val favResponse = echoStreamApi.getFavorites()
+                if (favResponse.isSuccessful) {
+                    val favData = favResponse.body()?.get("favorites") as? List<Map<String, Any>>
+                    if (favData != null) {
+                        likeDao.clearAll()
+                        favData.forEach { fav ->
+                            val songId = fav["songId"] as? String
+                            if (songId != null) {
+                                likeDao.insertLike(LikeEntity(songId = songId))
+                            }
+                        }
+                    }
+                }
+                
+                // Fetch Playlists
+                val plResponse = echoStreamApi.getPlaylists()
+                if (plResponse.isSuccessful) {
+                    val plData = plResponse.body()?.get("playlists") as? List<Map<String, Any>>
+                    if (plData != null) {
+                        playlistDao.clearAllPlaylists()
+                        playlistDao.clearAllPlaylistSongs()
+                        plData.forEach { pl ->
+                            val id = pl["_id"] as? String ?: pl["id"] as? String ?: return@forEach
+                            val name = pl["name"] as? String ?: "Playlist"
+                            val desc = pl["description"] as? String ?: ""
+                            val artworkUrl = pl["artworkUrl"] as? String ?: ""
+                            
+                            playlistDao.insertPlaylist(
+                                com.echostream.app.data.local.entity.PlaylistEntity(
+                                    id = id,
+                                    userId = "remote",
+                                    name = name,
+                                    description = desc,
+                                    artworkUrl = artworkUrl,
+                                    isPublic = true,
+                                    updatedAt = System.currentTimeMillis()
+                                )
+                            )
+                            
+                            val songs = pl["songs"] as? List<Map<String, Any>> ?: emptyList()
+                            songs.forEach { sMap ->
+                                val sId = sMap["songId"] as? String
+                                if (sId != null) {
+                                    playlistDao.addSongToPlaylist(
+                                        com.echostream.app.data.local.entity.PlaylistSongEntity(
+                                            playlistId = id,
+                                            songId = sId
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore fetch errors, keep local state
+            }
+            
             Result.success("Sync completed successfully!")
         } catch (e: Exception) {
             Result.failure(Exception("Sync failed"))

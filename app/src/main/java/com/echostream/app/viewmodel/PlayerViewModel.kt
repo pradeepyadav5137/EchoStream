@@ -26,7 +26,7 @@ class PlayerViewModel(
     val currentPosition: StateFlow<Long> = playerManager.currentPosition
     val duration: StateFlow<Long> = playerManager.duration
     val isShuffle: StateFlow<Boolean> = playerManager.isShuffle
-    val isRepeat: StateFlow<Boolean> = playerManager.isRepeat
+    val repeatMode: StateFlow<Int> = playerManager.repeatMode
     val showFullPlayer: StateFlow<Boolean> = playerManager.showFullPlayer
 
     private val _lyrics = MutableStateFlow<Lyrics?>(null)

@@ -24,4 +24,19 @@ interface HistoryDao {
 
     @Query("DELETE FROM history")
     suspend fun clearHistory()
+
+    @Query("SELECT SUM(durationPlayed) FROM history")
+    fun getTotalListeningTime(): Flow<Int?>
+
+    @Query("SELECT SUM(durationPlayed) FROM history WHERE playedAt >= :startOfDay")
+    fun getTodayListeningTime(startOfDay: Long): Flow<Int?>
+
+    @Query("""
+        SELECT s.* FROM songs s
+        INNER JOIN history h ON s.id = h.songId
+        GROUP BY s.id
+        ORDER BY COUNT(h.id) DESC
+        LIMIT 1
+    """)
+    fun getMostPlayedSong(): Flow<SongEntity?>
 }

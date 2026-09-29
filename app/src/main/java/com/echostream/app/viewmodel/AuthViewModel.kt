@@ -54,4 +54,46 @@ class AuthViewModel(private val authRepository: AuthRepository) : ViewModel() {
     fun clearError() {
         _errorMessage.value = null
     }
+
+    fun forgotPassword(email: String, onSuccess: (String) -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            val result = authRepository.forgotPassword(email)
+            _isLoading.value = false
+            if (result.isSuccess) {
+                onSuccess(result.getOrNull() ?: "OTP sent")
+            } else {
+                _errorMessage.value = result.exceptionOrNull()?.message ?: "Failed to send OTP"
+            }
+        }
+    }
+
+    fun verifyResetOtp(email: String, otp: String, onSuccess: (String) -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            val result = authRepository.verifyResetOtp(email, otp)
+            _isLoading.value = false
+            if (result.isSuccess) {
+                onSuccess(result.getOrNull() ?: "OTP verified")
+            } else {
+                _errorMessage.value = result.exceptionOrNull()?.message ?: "Invalid OTP"
+            }
+        }
+    }
+
+    fun resetPassword(email: String, newPassword: String, onSuccess: (String) -> Unit) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            _errorMessage.value = null
+            val result = authRepository.resetPassword(email, newPassword)
+            _isLoading.value = false
+            if (result.isSuccess) {
+                onSuccess(result.getOrNull() ?: "Password reset successful")
+            } else {
+                _errorMessage.value = result.exceptionOrNull()?.message ?: "Failed to reset password"
+            }
+        }
+    }
 }

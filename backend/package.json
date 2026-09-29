@@ -19,6 +19,7 @@
     "express-rate-limit": "^7.4.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.8.0",
+    "nodemailer": "^10.0.12",
     "play-dl": "^1.9.7",
     "saavnapi": "^1.0.1",
     "univora-saavn": "^1.0.0",

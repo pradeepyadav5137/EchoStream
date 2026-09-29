@@ -70,7 +70,7 @@ fun FullPlayerModal(
     currentPositionMs: Long,
     durationMs: Long,
     isShuffle: Boolean,
-    isRepeat: Boolean,
+    repeatMode: Int,
     lyrics: Lyrics?,
     onClose: () -> Unit,
     onPlayPause: () -> Unit,
@@ -300,11 +300,22 @@ fun FullPlayerModal(
                 }
 
                 IconButton(onClick = onToggleRepeat) {
-                    Icon(
-                        imageVector = Icons.Default.Repeat,
-                        contentDescription = "Repeat",
-                        tint = if (isRepeat) PrimaryViolet else TextMuted
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Repeat,
+                            contentDescription = "Repeat",
+                            tint = if (repeatMode != androidx.media3.common.Player.REPEAT_MODE_OFF) PrimaryViolet else TextMuted
+                        )
+                        if (repeatMode == androidx.media3.common.Player.REPEAT_MODE_ONE) {
+                            Text(
+                                text = "1",
+                                color = PrimaryViolet,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(top = 1.dp)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -324,14 +335,6 @@ fun FullPlayerModal(
                     )
                 }
 
-                IconButton(onClick = onOpenComments) {
-                    Icon(
-                        imageVector = Icons.Default.Comment,
-                        contentDescription = "Comments",
-                        tint = TextMuted
-                    )
-                }
-
                 IconButton(onClick = onAddToPlaylist) {
                     Icon(
                         imageVector = Icons.Default.PlaylistAdd,
@@ -340,7 +343,46 @@ fun FullPlayerModal(
                     )
                 }
 
-                IconButton(onClick = onDownload) {
+                var showDownloadDialog by remember { mutableStateOf(false) }
+
+                if (showDownloadDialog) {
+                    androidx.compose.material3.AlertDialog(
+                        onDismissRequest = { showDownloadDialog = false },
+                        containerColor = CardBackground,
+                        titleContentColor = TextPrimary,
+                        textContentColor = TextMuted,
+                        title = {
+                            Text(if (song.isDownloaded) "Remove Download?" else "Download Song?")
+                        },
+                        text = {
+                            Text(
+                                if (song.isDownloaded)
+                                    "Are you sure you want to remove '${song.title}' from your offline library?"
+                                else
+                                    "Do you want to download '${song.title}' for offline listening?"
+                            )
+                        },
+                        confirmButton = {
+                            androidx.compose.material3.TextButton(
+                                onClick = {
+                                    showDownloadDialog = false
+                                    onDownload()
+                                }
+                            ) {
+                                Text(if (song.isDownloaded) "Remove" else "Download", color = PrimaryViolet)
+                            }
+                        },
+                        dismissButton = {
+                            androidx.compose.material3.TextButton(
+                                onClick = { showDownloadDialog = false }
+                            ) {
+                                Text("Cancel", color = TextMuted)
+                            }
+                        }
+                    )
+                }
+
+                IconButton(onClick = { showDownloadDialog = true }) {
                     Icon(
                         imageVector = if (song.isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download,
                         contentDescription = "Download",

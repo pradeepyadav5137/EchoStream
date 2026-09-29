@@ -56,7 +56,7 @@ fun EchoStreamNavGraph(
     val currentPosition by playerViewModel.currentPosition.collectAsState()
     val duration by playerViewModel.duration.collectAsState()
     val isShuffle by playerViewModel.isShuffle.collectAsState()
-    val isRepeat by playerViewModel.isRepeat.collectAsState()
+    val repeatMode by playerViewModel.repeatMode.collectAsState()
     val showFullPlayer by playerViewModel.showFullPlayer.collectAsState()
     val lyrics by playerViewModel.lyrics.collectAsState()
     val comments by playerViewModel.comments.collectAsState()
@@ -180,10 +180,17 @@ fun EchoStreamNavGraph(
                     }
 
                     composable(Screen.Profile.route) {
+                        val totalTime by homeViewModel.totalListeningTime.collectAsState()
+                        val todayTime by homeViewModel.todayListeningTime.collectAsState()
+                        val mostPlayed by homeViewModel.mostPlayedSong.collectAsState()
+
                         ProfileScreen(
                             currentUser = currentUser,
                             isOnline = isOnline,
                             currentBaseUrl = currentBaseUrl,
+                            totalTime = totalTime,
+                            todayTime = todayTime,
+                            mostPlayedSong = mostPlayed,
                             onPerformSync = onPerformSync,
                             onUpdateBaseUrl = onUpdateBaseUrl,
                             onLogout = {
@@ -221,6 +228,40 @@ fun EchoStreamNavGraph(
                             }
                         )
                     }
+
+                    composable(
+                        route = Screen.ArtistDetail.route,
+                        arguments = listOf(navArgument("artistId") { type = NavType.StringType })
+                    ) { backStackEntry ->
+                        val artistId = backStackEntry.arguments?.getString("artistId") ?: ""
+                        
+                        val artistName = java.net.URLDecoder.decode(artistId, "UTF-8")
+                        
+                        val artistSongs by androidx.compose.runtime.produceState<List<com.echostream.app.data.model.Song>>(initialValue = emptyList(), key1 = artistName) {
+                            value = homeViewModel.allSongs.value.filter { it.artist.contains(artistName, ignoreCase = true) }
+                            if (value.isEmpty()) {
+                                value = homeViewModel.trendingSongs.value.take(5)
+                            }
+                        }
+                        
+                        com.echostream.app.ui.screens.ArtistDetailScreen(
+                            artist = com.echostream.app.data.model.Artist(
+                                id = artistId,
+                                name = artistName,
+                                imageUrl = artistSongs.firstOrNull()?.artworkUrl ?: "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=500",
+                                followersCount = 125000,
+                                isFollowed = false
+                            ),
+                            songs = artistSongs,
+                            onBack = { navController.popBackStack() },
+                            onSongSelect = { song, queue ->
+                                playerViewModel.playSong(song, queue)
+                            },
+                            onLikeClick = { song ->
+                                homeViewModel.toggleLike(song)
+                            }
+                        )
+                    }
                 }
             }
 
@@ -232,7 +273,7 @@ fun EchoStreamNavGraph(
                     currentPositionMs = currentPosition,
                     durationMs = duration,
                     isShuffle = isShuffle,
-                    isRepeat = isRepeat,
+                    repeatMode = repeatMode,
                     lyrics = lyrics,
                     onClose = { playerViewModel.setFullPlayerVisible(false) },
                     onPlayPause = { playerViewModel.togglePlayPause() },

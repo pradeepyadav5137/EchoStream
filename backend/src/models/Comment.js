@@ -9,4 +9,6 @@ const commentSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+commentSchema.index({ songId: 1, createdAt: -1 });
+
 module.exports = mongoose.model('Comment', commentSchema);

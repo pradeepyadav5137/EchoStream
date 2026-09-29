@@ -28,9 +28,27 @@ interface EchoStreamApiService {
     @POST("api/auth/logout")
     suspend fun logout(): Response<Map<String, String>>
 
+    @POST("api/auth/forgot-password")
+    suspend fun forgotPassword(@Body body: Map<String, String>): Response<Map<String, Any>>
+
+    @POST("api/auth/verify-reset-otp")
+    suspend fun verifyResetOtp(@Body body: Map<String, String>): Response<Map<String, Any>>
+
+    @POST("api/auth/reset-password")
+    suspend fun resetPassword(@Body body: Map<String, String>): Response<Map<String, Any>>
+
     // Music (Search and Details)
     @GET("api/music/search")
     suspend fun search(@Query("q") query: String, @Query("page") page: Int = 1, @Query("limit") limit: Int = 20): Response<Map<String, Any>>
+
+    @GET("api/music/search-all")
+    suspend fun searchAll(@Query("q") query: String, @Query("limit") limit: Int = 30): Response<Map<String, Any>>
+
+    @GET("api/music/artist-songs")
+    suspend fun getArtistSongs(@Query("name") artistName: String): Response<Map<String, Any>>
+
+    @GET("api/music/recommended")
+    suspend fun getRecommended(): Response<Map<String, Any>>
 
     @GET("api/music/song/{id}")
     suspend fun getSongById(@Path("id") id: String): Response<Map<String, Any>>

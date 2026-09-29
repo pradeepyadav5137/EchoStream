@@ -46,10 +46,11 @@ class SearchViewModel(private val musicRepository: MusicRepository) : ViewModel(
             delay(500) // Debounce
             _isSearching.value = true
             currentPage = 1
-            musicRepository.search(newQuery, currentPage).collect { songs ->
+            musicRepository.search(newQuery, 30).collect { result ->
+                val songs = result["songs"] as? List<Song> ?: emptyList()
                 _searchResults.value = songs
                 _isSearching.value = false
-                hasMore = songs.size >= 20
+                hasMore = false // searchAll is not paginated in the same way right now
             }
         }
     }
@@ -61,12 +62,15 @@ class SearchViewModel(private val musicRepository: MusicRepository) : ViewModel(
         currentPage++
 
         viewModelScope.launch {
-            musicRepository.search(_query.value, currentPage).collect { newSongs ->
+            musicRepository.search(_query.value, 30).collect { result -> // Hardcoded limit for now
+                val newSongs = result["songs"] as? List<Song> ?: emptyList()
                 val current = _searchResults.value.toMutableList()
-                current.addAll(newSongs)
+                // Simple dedup for demo purposes
+                val existingIds = current.map { it.id }.toSet()
+                current.addAll(newSongs.filter { !existingIds.contains(it.id) })
                 _searchResults.value = current
                 _isSearching.value = false
-                hasMore = newSongs.isNotEmpty()
+                hasMore = false // searchAll is not properly paginated right now
             }
         }
     }

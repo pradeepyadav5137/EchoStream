@@ -114,4 +114,54 @@ class AuthRepository(
         _currentUser.value = null
         _isLoggedIn.value = false
     }
+
+    suspend fun forgotPassword(email: String): Result<String> {
+        return try {
+            val response = apiService.forgotPassword(mapOf("email" to email))
+            if (response.isSuccessful) {
+                Result.success(response.body()?.get("message") as? String ?: "OTP sent")
+            } else {
+                Result.failure(Exception("Failed to send OTP"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun verifyResetOtp(email: String, otp: String): Result<String> {
+        return try {
+            val response = apiService.verifyResetOtp(mapOf("email" to email, "otp" to otp))
+            if (response.isSuccessful) {
+                Result.success(response.body()?.get("message") as? String ?: "OTP verified")
+            } else {
+                // Try to extract the error message from the errorBody, if available
+                val errorBody = response.errorBody()?.string()
+                val message = if (errorBody != null && errorBody.contains("message")) {
+                    try {
+                        org.json.JSONObject(errorBody).getString("message")
+                    } catch (ex: Exception) {
+                        "Invalid OTP"
+                    }
+                } else {
+                    "Invalid OTP"
+                }
+                Result.failure(Exception(message))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun resetPassword(email: String, newPassword: String): Result<String> {
+        return try {
+            val response = apiService.resetPassword(mapOf("email" to email, "newPassword" to newPassword))
+            if (response.isSuccessful) {
+                Result.success(response.body()?.get("message") as? String ?: "Password reset successfully")
+            } else {
+                Result.failure(Exception("Failed to reset password"))
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

@@ -110,12 +110,31 @@ fun ArtistDetailScreen(
             }
 
             item {
-                Text(
-                    text = "Popular Tracks",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = TextPrimary,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = androidx.compose.foundation.layout.Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Popular Tracks",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = TextPrimary
+                    )
+
+                    Button(
+                        onClick = { 
+                            if (songs.isNotEmpty()) {
+                                onSongSelect(songs.first(), songs)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryViolet),
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp)
+                    ) {
+                        Text("Play All (Radio)", color = TextPrimary)
+                    }
+                }
             }
 
             items(songs) { song ->

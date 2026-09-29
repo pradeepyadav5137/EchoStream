@@ -39,6 +39,7 @@ const musicRoutes = require('./routes/musicRoutes');
 const playlistRoutes = require('./routes/playlistRoutes');
 const favoriteRoutes = require('./routes/favoriteRoutes');
 const historyRoutes = require('./routes/historyRoutes');
+const followRoutes = require('./routes/followRoutes');
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
@@ -46,6 +47,7 @@ app.use('/api/music', musicRoutes);
 app.use('/api/playlists', playlistRoutes);
 app.use('/api/favorites', favoriteRoutes);
 app.use('/api/history', historyRoutes);
+app.use('/api/follows', followRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

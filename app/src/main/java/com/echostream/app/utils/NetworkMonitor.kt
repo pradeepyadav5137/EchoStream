@@ -22,6 +22,12 @@ class NetworkMonitor(context: Context) {
             override fun onLost(network: Network) {
                 trySend(false)
             }
+            
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                super.onCapabilitiesChanged(network, networkCapabilities)
+                val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                trySend(hasInternet)
+            }
         }
 
         val request = NetworkRequest.Builder()

@@ -31,4 +31,7 @@ interface LikeDao {
 
     @Query("DELETE FROM likes WHERE songId = :songId")
     suspend fun deleteLike(songId: String)
+
+    @Query("DELETE FROM likes")
+    suspend fun clearAll()
 }

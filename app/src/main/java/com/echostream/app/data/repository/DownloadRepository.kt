@@ -14,9 +14,14 @@ import java.io.FileOutputStream
 
 class DownloadRepository(
     private val context: Context,
-    private val downloadDao: DownloadDao
+    private val downloadDao: DownloadDao,
+    private var echoStreamApi: com.echostream.app.data.api.EchoStreamApiService
 ) {
     private val client = OkHttpClient()
+
+    fun updateApiService(newService: com.echostream.app.data.api.EchoStreamApiService) {
+        echoStreamApi = newService
+    }
 
     val downloads: Flow<List<DownloadEntity>> = downloadDao.getAllDownloads()
 
@@ -32,7 +37,19 @@ class DownloadRepository(
                 return@withContext Result.success(audioFile.absolutePath)
             }
 
-            val request = Request.Builder().url(song.audioUrl).build()
+            var finalUrl = song.audioUrl
+            if (finalUrl.startsWith("resolve://")) {
+                val response = echoStreamApi.getStreamUrl(song.id)
+                if (response.isSuccessful) {
+                    val body = response.body()
+                    finalUrl = body?.get("streamUrl") as? String ?: ""
+                }
+                if (finalUrl.isEmpty()) {
+                    return@withContext Result.failure(Exception("Could not resolve stream URL"))
+                }
+            }
+
+            val request = Request.Builder().url(finalUrl).build()
             val response = client.newCall(request).execute()
 
             if (!response.isSuccessful || response.body == null) {

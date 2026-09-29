@@ -65,7 +65,7 @@ class MusicRepository(
     // Refresh songs from online backend or Jamendo
     suspend fun refreshSongs(): Result<Unit> {
         return try {
-            val response = echoStreamApi.search("top global hits", 1, 20)
+            val response = echoStreamApi.search("top punjabi hits 2024", 1, 20)
             if (response.isSuccessful && response.body() != null) {
                 val results = response.body()?.get("results") as? List<Map<String, Any>> ?: emptyList()
                 val remoteSongs = results.map { r ->
@@ -76,7 +76,7 @@ class MusicRepository(
                         artistId = "unknown",
                         album = r["album"] as? String ?: "Unknown Album",
                         albumId = "unknown",
-                        genre = "Global",
+                        genre = "Punjabi",
                         duration = (r["duration"] as? Double)?.toInt() ?: 0,
                         audioUrl = "resolve://${r["id"]}",
                         artworkUrl = r["thumbnail"] as? String ?: "",
@@ -142,6 +142,13 @@ class MusicRepository(
         }
     }
 
+    // Stats
+    fun getTotalListeningTime(): Flow<Int?> = historyDao.getTotalListeningTime()
+    
+    fun getTodayListeningTime(startOfDay: Long): Flow<Int?> = historyDao.getTodayListeningTime(startOfDay)
+    
+    fun getMostPlayedSong(): Flow<SongEntity?> = historyDao.getMostPlayedSong()
+
     // Ensure song is inserted into the local database (used for playlists/history/likes)
     suspend fun insertSongLocally(song: Song) {
         songDao.insertSong(SongEntity.fromSong(song))
@@ -201,52 +208,58 @@ class MusicRepository(
     private fun getDefaultLyrics(songId: String): Lyrics {
         return Lyrics(
             songId = songId,
-            plainLyrics = "Mujhko jitna bataye koi\nMai utna hi bhoolu\nBaton me teri aane laga hu\nKuch toh hua hai mujhko\nKesariya tera ishq hai piya\nRang jaau jo mai hath lagau",
-            syncedLyrics = listOf(
-                LyricsLine(0, "Mujhko jitna bataye koi"),
-                LyricsLine(4000, "Mai utna hi bhoolu"),
-                LyricsLine(8000, "Baton me teri aane laga hu"),
-                LyricsLine(12000, "Kuch toh hua hai mujhko"),
-                LyricsLine(16000, "Kesariya tera ishq hai piya"),
-                LyricsLine(20000, "Rang jaau jo mai hath lagau")
-            )
+            plainLyrics = "Lyrics are not available for this track yet.",
+            syncedLyrics = emptyList()
         )
     }
 
-    suspend fun search(query: String, page: Int = 1): Flow<List<Song>> = flow {
+    suspend fun search(query: String, limit: Int = 30): Flow<Map<String, List<Any>>> = flow {
         try {
-            val response = echoStreamApi.search(query, page, 20)
+            val response = echoStreamApi.searchAll(query, limit)
             if (response.isSuccessful) {
                 val body = response.body()
-                val results = body?.get("results") as? List<Map<String, Any>> ?: emptyList()
-                val mappedSongs = results.map { r ->
-                    Song(
-                        id = r["id"] as? String ?: "",
-                        title = r["title"] as? String ?: "Unknown Title",
-                        artist = r["artist"] as? String ?: "Unknown Artist",
-                        artistId = "unknown",
-                        album = r["album"] as? String ?: "Unknown Album",
-                        albumId = "unknown",
-                        genre = "Unknown",
-                        duration = (r["duration"] as? Double)?.toInt() ?: 0,
-                        audioUrl = "resolve://${r["id"]}",
-                        artworkUrl = r["thumbnail"] as? String ?: "",
-                        playCount = 0,
-                        likeCount = 0,
-                        isTrending = false
-                    )
-                }
-                emit(mappedSongs)
+                
+                // Parse songs
+                val songsRaw = body?.get("songs") as? List<Map<String, Any>> ?: emptyList()
+                val songs = songsRaw.map { mapToSong(it) }
+                
+                // Parse artists and albums (simplified parsing as Map)
+                val artists = body?.get("artists") as? List<Map<String, Any>> ?: emptyList()
+                val albums = body?.get("albums") as? List<Map<String, Any>> ?: emptyList()
+                
+                emit(mapOf(
+                    "songs" to songs,
+                    "artists" to artists,
+                    "albums" to albums
+                ))
             } else {
-                emit(emptyList())
+                emit(emptyMap())
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            emit(emptyList())
+            emit(emptyMap())
         }
     }
 
-    // Simple rule-based recommendations
+    private fun mapToSong(r: Map<String, Any>): Song {
+        return Song(
+            id = r["id"] as? String ?: "",
+            title = r["title"] as? String ?: r["name"] as? String ?: "Unknown Title",
+            artist = r["artist"] as? String ?: "Unknown Artist",
+            artistId = r["artistId"] as? String ?: "unknown",
+            album = r["album"] as? String ?: "Unknown Album",
+            albumId = r["albumId"] as? String ?: "unknown",
+            genre = r["genre"] as? String ?: "Unknown",
+            duration = (r["duration"] as? Double)?.toInt() ?: 0,
+            audioUrl = "resolve://${r["id"]}",
+            artworkUrl = r["thumbnail"] as? String ?: r["imageUrl"] as? String ?: "",
+            playCount = (r["playCount"] as? Double)?.toInt() ?: 0,
+            likeCount = 0,
+            isTrending = false
+        )
+    }
+
+    // Simple rule-based recommendations fallback
     fun getRecommendations(allSongs: List<Song>, likedSongs: List<Song>, historySongs: List<Song>): List<Song> {
         val likedArtists = likedSongs.map { it.artist }.toSet()
         val likedGenres = likedSongs.map { it.genre }.toSet()
@@ -259,6 +272,46 @@ class MusicRepository(
             if (historyArtists.contains(song.artist)) score += 2
             score += 1
             score
+        }
+    }
+
+    suspend fun getArtistSongs(artistName: String): Flow<List<Song>> = flow {
+        try {
+            val response = echoStreamApi.getArtistSongs(artistName)
+            if (response.isSuccessful) {
+                val body = response.body()
+                val songsRaw = body?.get("songs") as? List<Map<String, Any>> ?: emptyList()
+                emit(songsRaw.map { mapToSong(it) })
+            } else {
+                emit(emptyList())
+            }
+        } catch (e: Exception) {
+            emit(emptyList())
+        }
+    }
+
+    suspend fun getRecommendedSections(): Flow<List<Map<String, Any>>> = flow {
+        try {
+            val response = echoStreamApi.getRecommended()
+            if (response.isSuccessful) {
+                val body = response.body()
+                val sections = body?.get("sections") as? List<Map<String, Any>> ?: emptyList()
+                
+                // Map the inner songs array to Song objects
+                val mappedSections = sections.map { section ->
+                    val title = section["title"] as? String ?: "Recommended"
+                    val songsRaw = section["songs"] as? List<Map<String, Any>> ?: emptyList()
+                    mapOf(
+                        "title" to title,
+                        "songs" to songsRaw.map { mapToSong(it) }
+                    )
+                }
+                emit(mappedSections)
+            } else {
+                emit(emptyList())
+            }
+        } catch (e: Exception) {
+            emit(emptyList())
         }
     }
 }
