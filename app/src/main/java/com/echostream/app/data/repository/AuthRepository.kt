@@ -29,7 +29,8 @@ class AuthRepository(
             _isLoggedIn.value = true
             val savedUserId = prefs.getString(Constants.KEY_USER_ID, "guest") ?: "guest"
             val savedUsername = prefs.getString(Constants.KEY_USERNAME, "User") ?: "User"
-            _currentUser.value = User(id = savedUserId, username = savedUsername, email = "$savedUsername@echostream.com")
+            val savedEmail = prefs.getString("user_email", "$savedUsername@echostream.com") ?: "$savedUsername@echostream.com"
+            _currentUser.value = User(id = savedUserId, username = savedUsername, email = savedEmail)
         }
     }
 
@@ -49,6 +50,7 @@ class AuthRepository(
                     .putString(Constants.KEY_AUTH_TOKEN, token)
                     .putString(Constants.KEY_USER_ID, user.id)
                     .putString(Constants.KEY_USERNAME, user.username)
+                    .putString("user_email", user.email)
                     .apply()
 
                 NetworkClient.setToken(token)
@@ -65,6 +67,7 @@ class AuthRepository(
                 .putString(Constants.KEY_AUTH_TOKEN, "demo_local_token")
                 .putString(Constants.KEY_USER_ID, user.id)
                 .putString(Constants.KEY_USERNAME, user.username)
+                .putString("user_email", user.email)
                 .apply()
             NetworkClient.setToken("demo_local_token")
             _currentUser.value = user
@@ -85,6 +88,7 @@ class AuthRepository(
                     .putString(Constants.KEY_AUTH_TOKEN, token)
                     .putString(Constants.KEY_USER_ID, user.id)
                     .putString(Constants.KEY_USERNAME, user.username)
+                    .putString("user_email", user.email)
                     .apply()
 
                 NetworkClient.setToken(token)
@@ -100,6 +104,7 @@ class AuthRepository(
                 .putString(Constants.KEY_AUTH_TOKEN, "demo_local_token")
                 .putString(Constants.KEY_USER_ID, user.id)
                 .putString(Constants.KEY_USERNAME, user.username)
+                .putString("user_email", user.email)
                 .apply()
             NetworkClient.setToken("demo_local_token")
             _currentUser.value = user

@@ -191,11 +191,22 @@ class MusicRepository(
     suspend fun recordHistory(song: Song, durationPlayed: Int = 0) {
         songDao.insertSong(SongEntity.fromSong(song))
         historyDao.insertHistory(HistoryEntity(songId = song.id, durationPlayed = durationPlayed))
+        
+        val payload = mapOf(
+            "songId" to song.id,
+            "title" to song.title,
+            "artist" to song.artist,
+            "album" to song.album,
+            "thumbnail" to song.artworkUrl,
+            "duration" to song.duration, // Backend expects full duration as 'duration'
+            "durationPlayed" to durationPlayed
+        )
+        
         try {
-            echoStreamApi.addHistory(mapOf("songId" to song.id, "durationPlayed" to durationPlayed))
+            echoStreamApi.addHistory(payload)
         } catch (e: Exception) {
             pendingSyncDao.insertPendingAction(
-                PendingSyncEntity(type = "HISTORY", payloadJson = gson.toJson(mapOf("songId" to song.id, "durationPlayed" to durationPlayed)))
+                PendingSyncEntity(type = "HISTORY", payloadJson = gson.toJson(payload))
             )
         }
     }

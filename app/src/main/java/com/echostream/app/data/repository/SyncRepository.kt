@@ -51,7 +51,23 @@ class SyncRepository(
                         "HISTORY" -> {
                             echoStreamApi.addHistory(payload)
                         }
-                        // Add more as needed (e.g. PLAYLIST_CREATE, PLAYLIST_ADD_SONG)
+                        "CREATE_PLAYLIST" -> {
+                            echoStreamApi.createPlaylist(payload)
+                        }
+                        "ADD_PLAYLIST_SONG" -> {
+                            val playlistId = payload["playlistId"] as? String
+                            val songId = payload["songId"] as? String
+                            if (playlistId != null && songId != null) {
+                                echoStreamApi.addSongToPlaylist(playlistId, mapOf("songId" to songId))
+                            }
+                        }
+                        "REMOVE_PLAYLIST_SONG" -> {
+                            val playlistId = payload["playlistId"] as? String
+                            val songId = payload["songId"] as? String
+                            if (playlistId != null && songId != null) {
+                                echoStreamApi.removeSongFromPlaylist(playlistId, songId)
+                            }
+                        }
                     }
                     // Delete if successful
                     pendingSyncDao.deletePendingAction(action.id)
@@ -113,6 +129,29 @@ class SyncRepository(
                                         )
                                     )
                                 }
+                            }
+                        }
+                    }
+                }
+                
+                // Fetch History
+                val histResponse = echoStreamApi.getHistory()
+                if (histResponse.isSuccessful) {
+                    val histData = histResponse.body()?.get("history") as? List<Map<String, Any>>
+                    if (histData != null) {
+                        historyDao.clearHistory()
+                        histData.forEach { h ->
+                            val sId = h["songId"] as? String
+                            val playedAtStr = h["playedAt"] as? String
+                            val durationPlayed = (h["durationPlayed"] as? Number)?.toInt() ?: 0
+                            if (sId != null) {
+                                historyDao.insertHistory(
+                                    com.echostream.app.data.local.entity.HistoryEntity(
+                                        songId = sId,
+                                        playedAt = System.currentTimeMillis(), // Simplified timestamp
+                                        durationPlayed = durationPlayed
+                                    )
+                                )
                             }
                         }
                     }

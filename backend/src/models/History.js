@@ -8,6 +8,7 @@ const historySchema = new mongoose.Schema({
   album: { type: String, default: 'Unknown Album' },
   thumbnail: { type: String, default: '' },
   duration: { type: Number, default: 0 },
+  durationPlayed: { type: Number, default: 0 },
   source: { type: String, default: 'jiosaavn' },
   playedAt: { type: Date, default: Date.now }
 });

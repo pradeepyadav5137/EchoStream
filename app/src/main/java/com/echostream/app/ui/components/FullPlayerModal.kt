@@ -352,31 +352,16 @@ fun FullPlayerModal(
                         titleContentColor = TextPrimary,
                         textContentColor = TextMuted,
                         title = {
-                            Text(if (song.isDownloaded) "Remove Download?" else "Download Song?")
+                            Text("Coming Soon")
                         },
                         text = {
-                            Text(
-                                if (song.isDownloaded)
-                                    "Are you sure you want to remove '${song.title}' from your offline library?"
-                                else
-                                    "Do you want to download '${song.title}' for offline listening?"
-                            )
+                            Text("Downloading songs for offline listening will be available in a future update!")
                         },
                         confirmButton = {
                             androidx.compose.material3.TextButton(
-                                onClick = {
-                                    showDownloadDialog = false
-                                    onDownload()
-                                }
-                            ) {
-                                Text(if (song.isDownloaded) "Remove" else "Download", color = PrimaryViolet)
-                            }
-                        },
-                        dismissButton = {
-                            androidx.compose.material3.TextButton(
                                 onClick = { showDownloadDialog = false }
                             ) {
-                                Text("Cancel", color = TextMuted)
+                                Text("OK", color = PrimaryViolet)
                             }
                         }
                     )
@@ -384,9 +369,9 @@ fun FullPlayerModal(
 
                 IconButton(onClick = { showDownloadDialog = true }) {
                     Icon(
-                        imageVector = if (song.isDownloaded) Icons.Default.DownloadDone else Icons.Default.Download,
+                        imageVector = Icons.Default.Download,
                         contentDescription = "Download",
-                        tint = if (song.isDownloaded) PrimaryViolet else TextMuted
+                        tint = TextMuted
                     )
                 }
             }
