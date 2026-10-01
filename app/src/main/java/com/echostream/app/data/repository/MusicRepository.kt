@@ -161,7 +161,7 @@ class MusicRepository(
         if (newLikedState) {
             likeDao.insertLike(LikeEntity(songId = song.id))
             try {
-                echoStreamApi.addFavorite(song.id, mapOf(
+                val response = echoStreamApi.addFavorite(song.id, mapOf(
                     "title" to song.title,
                     "artist" to song.artist,
                     "album" to song.album,
@@ -169,6 +169,7 @@ class MusicRepository(
                     "duration" to song.duration,
                     "source" to "youtube"
                 ))
+                if (!response.isSuccessful) throw Exception("API error")
             } catch (e: Exception) {
                 pendingSyncDao.insertPendingAction(
                     PendingSyncEntity(type = "LIKE", payloadJson = gson.toJson(mapOf("songId" to song.id)))
@@ -177,7 +178,8 @@ class MusicRepository(
         } else {
             likeDao.deleteLike(song.id)
             try {
-                echoStreamApi.removeFavorite(song.id)
+                val response = echoStreamApi.removeFavorite(song.id)
+                if (!response.isSuccessful) throw Exception("API error")
             } catch (e: Exception) {
                 pendingSyncDao.insertPendingAction(
                     PendingSyncEntity(type = "UNLIKE", payloadJson = gson.toJson(mapOf("songId" to song.id)))
@@ -203,7 +205,8 @@ class MusicRepository(
         )
         
         try {
-            echoStreamApi.addHistory(payload)
+            val response = echoStreamApi.addHistory(payload)
+            if (!response.isSuccessful) throw Exception("API error")
         } catch (e: Exception) {
             pendingSyncDao.insertPendingAction(
                 PendingSyncEntity(type = "HISTORY", payloadJson = gson.toJson(payload))

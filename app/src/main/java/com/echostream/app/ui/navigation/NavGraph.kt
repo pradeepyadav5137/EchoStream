@@ -123,6 +123,7 @@ fun EchoStreamNavGraph(
                             isLoggedIn = isLoggedIn,
                             onNavigateNext = { loggedIn ->
                                 if (loggedIn) {
+                                    onPerformSync()
                                     navController.navigate(Screen.Home.route) {
                                         popUpTo(Screen.Splash.route) { inclusive = true }
                                     }
@@ -139,6 +140,7 @@ fun EchoStreamNavGraph(
                         AuthScreen(
                             viewModel = authViewModel,
                             onAuthSuccess = {
+                                onPerformSync()
                                 navController.navigate(Screen.Home.route) {
                                     popUpTo(Screen.Auth.route) { inclusive = true }
                                 }
@@ -281,7 +283,6 @@ fun EchoStreamNavGraph(
                     onPrevious = { playerViewModel.playPrevious() },
                     onSeek = { position -> playerViewModel.seekTo(position) },
                     onLike = { playerViewModel.toggleLike() },
-                    onDownload = { playerViewModel.downloadSong() },
                     onToggleShuffle = { playerViewModel.toggleShuffle() },
                     onToggleRepeat = { playerViewModel.toggleRepeat() },
                     onOpenComments = { playerViewModel.setShowCommentsSheet(true) },

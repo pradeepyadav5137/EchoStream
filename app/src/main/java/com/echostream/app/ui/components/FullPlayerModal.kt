@@ -78,7 +78,6 @@ fun FullPlayerModal(
     onPrevious: () -> Unit,
     onSeek: (Long) -> Unit,
     onLike: () -> Unit,
-    onDownload: () -> Unit,
     onToggleShuffle: () -> Unit,
     onToggleRepeat: () -> Unit,
     onOpenComments: () -> Unit,

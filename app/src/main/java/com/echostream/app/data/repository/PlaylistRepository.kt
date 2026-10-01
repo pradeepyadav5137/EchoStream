@@ -68,7 +68,8 @@ class PlaylistRepository(
 
         val payload = mapOf("id" to playlistId, "name" to name, "description" to description)
         try {
-            echoStreamApi.createPlaylist(payload)
+            val response = echoStreamApi.createPlaylist(payload)
+            if (!response.isSuccessful) throw Exception("API error")
         } catch (e: Exception) {
             pendingSyncDao.insertPendingAction(
                 PendingSyncEntity(type = "CREATE_PLAYLIST", payloadJson = gson.toJson(payload))
@@ -81,7 +82,8 @@ class PlaylistRepository(
     suspend fun addSongToPlaylist(playlistId: String, songId: String) {
         playlistDao.addSongToPlaylist(PlaylistSongEntity(playlistId = playlistId, songId = songId))
         try {
-            echoStreamApi.addSongToPlaylist(playlistId, mapOf("songId" to songId))
+            val response = echoStreamApi.addSongToPlaylist(playlistId, mapOf("songId" to songId))
+            if (!response.isSuccessful) throw Exception("API error")
         } catch (e: Exception) {
             pendingSyncDao.insertPendingAction(
                 PendingSyncEntity(type = "ADD_PLAYLIST_SONG", payloadJson = gson.toJson(mapOf("playlistId" to playlistId, "songId" to songId)))
@@ -92,7 +94,8 @@ class PlaylistRepository(
     suspend fun removeSongFromPlaylist(playlistId: String, songId: String) {
         playlistDao.removeSongFromPlaylist(playlistId, songId)
         try {
-            echoStreamApi.removeSongFromPlaylist(playlistId, songId)
+            val response = echoStreamApi.removeSongFromPlaylist(playlistId, songId)
+            if (!response.isSuccessful) throw Exception("API error")
         } catch (e: Exception) {
             pendingSyncDao.insertPendingAction(
                 PendingSyncEntity(type = "REMOVE_PLAYLIST_SONG", payloadJson = gson.toJson(mapOf("playlistId" to playlistId, "songId" to songId)))

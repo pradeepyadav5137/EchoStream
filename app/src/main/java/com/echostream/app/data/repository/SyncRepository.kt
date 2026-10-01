@@ -39,33 +39,39 @@ class SyncRepository(
                         "LIKE" -> {
                             val songId = payload["songId"] as? String
                             if (songId != null) {
-                                echoStreamApi.addFavorite(songId, payload)
+                                val response = echoStreamApi.addFavorite(songId, payload)
+                                if (!response.isSuccessful) throw Exception("API error")
                             }
                         }
                         "UNLIKE" -> {
                             val songId = payload["songId"] as? String
                             if (songId != null) {
-                                echoStreamApi.removeFavorite(songId)
+                                val response = echoStreamApi.removeFavorite(songId)
+                                if (!response.isSuccessful) throw Exception("API error")
                             }
                         }
                         "HISTORY" -> {
-                            echoStreamApi.addHistory(payload)
+                            val response = echoStreamApi.addHistory(payload)
+                            if (!response.isSuccessful) throw Exception("API error")
                         }
                         "CREATE_PLAYLIST" -> {
-                            echoStreamApi.createPlaylist(payload)
+                            val response = echoStreamApi.createPlaylist(payload)
+                            if (!response.isSuccessful) throw Exception("API error")
                         }
                         "ADD_PLAYLIST_SONG" -> {
                             val playlistId = payload["playlistId"] as? String
                             val songId = payload["songId"] as? String
                             if (playlistId != null && songId != null) {
-                                echoStreamApi.addSongToPlaylist(playlistId, mapOf("songId" to songId))
+                                val response = echoStreamApi.addSongToPlaylist(playlistId, mapOf("songId" to songId))
+                                if (!response.isSuccessful) throw Exception("API error")
                             }
                         }
                         "REMOVE_PLAYLIST_SONG" -> {
                             val playlistId = payload["playlistId"] as? String
                             val songId = payload["songId"] as? String
                             if (playlistId != null && songId != null) {
-                                echoStreamApi.removeSongFromPlaylist(playlistId, songId)
+                                val response = echoStreamApi.removeSongFromPlaylist(playlistId, songId)
+                                if (!response.isSuccessful) throw Exception("API error")
                             }
                         }
                     }

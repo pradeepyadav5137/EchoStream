@@ -38,9 +38,6 @@ class PlayerViewModel(
     private val _showCommentsSheet = MutableStateFlow(false)
     val showCommentsSheet: StateFlow<Boolean> = _showCommentsSheet
 
-    private val _downloadProgress = MutableStateFlow(0)
-    val downloadProgress: StateFlow<Int> = _downloadProgress
-
     private val _showPlaylistSheet = MutableStateFlow(false)
     val showPlaylistSheet: StateFlow<Boolean> = _showPlaylistSheet
 
@@ -81,19 +78,6 @@ class PlayerViewModel(
         viewModelScope.launch {
             val newState = musicRepository.toggleLike(song)
             playerManager.updateCurrentSong(song.copy(isLiked = newState))
-        }
-    }
-
-    fun downloadSong() {
-        val song = currentSong.value ?: return
-        viewModelScope.launch {
-            if (song.isDownloaded) {
-                downloadRepository.deleteDownload(song.id)
-            } else {
-                downloadRepository.downloadSong(song) { progress ->
-                    _downloadProgress.value = progress
-                }
-            }
         }
     }
 
