@@ -172,7 +172,15 @@ class MusicRepository(
                 if (!response.isSuccessful) throw Exception("API error")
             } catch (e: Exception) {
                 pendingSyncDao.insertPendingAction(
-                    PendingSyncEntity(type = "LIKE", payloadJson = gson.toJson(mapOf("songId" to song.id)))
+                    PendingSyncEntity(type = "LIKE", payloadJson = gson.toJson(mapOf(
+                        "songId" to song.id,
+                        "title" to song.title,
+                        "artist" to song.artist,
+                        "album" to song.album,
+                        "thumbnail" to song.artworkUrl,
+                        "duration" to song.duration,
+                        "source" to "youtube"
+                    )))
                 )
             }
         } else {

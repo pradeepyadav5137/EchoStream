@@ -20,6 +20,13 @@ interface LikeDao {
     """)
     fun getLikedSongs(): Flow<List<SongEntity>>
 
+    @Query("""
+        SELECT s.* FROM songs s
+        INNER JOIN likes l ON s.id = l.songId
+        ORDER BY l.likedAt DESC
+    """)
+    suspend fun getLikedSongsSync(): List<SongEntity>
+
     @Query("SELECT EXISTS(SELECT 1 FROM likes WHERE songId = :songId)")
     fun isSongLiked(songId: String): Flow<Boolean>
 

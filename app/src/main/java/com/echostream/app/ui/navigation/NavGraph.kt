@@ -45,6 +45,7 @@ fun EchoStreamNavGraph(
     isOnline: Boolean,
     currentBaseUrl: String,
     onPerformSync: () -> Unit,
+    onForceUpload: () -> Unit,
     onUpdateBaseUrl: (String) -> Unit
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -194,6 +195,7 @@ fun EchoStreamNavGraph(
                             todayTime = todayTime,
                             mostPlayedSong = mostPlayed,
                             onPerformSync = onPerformSync,
+                            onForceUpload = onForceUpload,
                             onUpdateBaseUrl = onUpdateBaseUrl,
                             onLogout = {
                                 authViewModel.logout()

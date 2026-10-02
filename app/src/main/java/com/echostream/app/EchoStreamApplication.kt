@@ -80,7 +80,8 @@ class EchoStreamApplication : Application() {
             pendingSyncDao = database.pendingSyncDao(),
             likeDao = database.likeDao(),
             playlistDao = database.playlistDao(),
-            historyDao = database.historyDao()
+            historyDao = database.historyDao(),
+            songDao = database.songDao()
         )
 
         downloadRepository = DownloadRepository(

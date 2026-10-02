@@ -19,6 +19,9 @@ interface HistoryDao {
     """)
     fun getRecentlyPlayedSongs(): Flow<List<SongEntity>>
 
+    @Query("SELECT * FROM history")
+    suspend fun getAllHistorySync(): List<HistoryEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertHistory(history: HistoryEntity)
 

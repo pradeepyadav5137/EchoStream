@@ -44,13 +44,47 @@ class PlayerViewModel(
     private val _playlists = MutableStateFlow<List<Playlist>>(emptyList())
     val playlists: StateFlow<List<Playlist>> = _playlists
 
+    private var lastRecordedSongId: String? = null
+    private var songStartTimeMs: Long = 0L
+
     init {
         viewModelScope.launch {
             playerManager.currentSong.collect { song ->
+                // When song changes, record the PREVIOUS song's actual listening time
+                val previousSongId = lastRecordedSongId
+                if (previousSongId != null && previousSongId != song?.id) {
+                    val listenedMs = playerManager.currentPosition.value
+                    val listenedSeconds = (listenedMs / 1000).toInt().coerceAtLeast(0)
+                    if (listenedSeconds > 0) {
+                        // Update the previous history entry with actual duration
+                        musicRepository.recordHistory(
+                            playerManager.playlist.value.find { it.id == previousSongId }
+                                ?: return@collect,
+                            durationPlayed = listenedSeconds
+                        )
+                    }
+                }
+
                 if (song != null) {
-                    musicRepository.recordHistory(song)
+                    lastRecordedSongId = song.id
+                    songStartTimeMs = System.currentTimeMillis()
+                    // Record the new song with 0 duration initially (marks it as "started playing")
+                    musicRepository.recordHistory(song, durationPlayed = 0)
                     loadLyrics(song.id)
                     loadComments(song.id)
+                }
+            }
+        }
+        // Periodically update listening time for the current song
+        viewModelScope.launch {
+            while (true) {
+                kotlinx.coroutines.delay(30_000L) // Every 30 seconds
+                val song = playerManager.currentSong.value
+                if (song != null && playerManager.isPlaying.value) {
+                    val elapsedSeconds = ((System.currentTimeMillis() - songStartTimeMs) / 1000).toInt()
+                    if (elapsedSeconds > 0) {
+                        musicRepository.recordHistory(song, durationPlayed = elapsedSeconds)
+                    }
                 }
             }
         }

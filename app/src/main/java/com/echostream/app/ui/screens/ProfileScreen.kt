@@ -65,6 +65,7 @@ fun ProfileScreen(
     todayTime: Int,
     mostPlayedSong: com.echostream.app.data.model.Song?,
     onPerformSync: () -> Unit,
+    onForceUpload: () -> Unit,
     onUpdateBaseUrl: (String) -> Unit,
     onLogout: () -> Unit
 ) {
@@ -167,6 +168,16 @@ fun ProfileScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Sync Now")
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                Button(
+                    onClick = onForceUpload,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryViolet),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Force Upload Device State")
                 }
             }
         }

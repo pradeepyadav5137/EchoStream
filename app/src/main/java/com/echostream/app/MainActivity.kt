@@ -74,6 +74,16 @@ class MainActivity : ComponentActivity() {
                             ).show()
                         }
                     },
+                    onForceUpload = {
+                        scope.launch {
+                            val result = app.syncRepository.forceUploadState()
+                            Toast.makeText(
+                                this@MainActivity,
+                                result.getOrElse { "Upload failed: ${it.message}" },
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    },
                     onUpdateBaseUrl = { newUrl ->
                         app.updateBaseUrl(newUrl)
                         baseUrl = newUrl
