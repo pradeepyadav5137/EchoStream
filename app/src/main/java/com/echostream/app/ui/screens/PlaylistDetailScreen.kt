@@ -48,8 +48,11 @@ fun PlaylistDetailScreen(
     onBack: () -> Unit,
     onPlayAll: () -> Unit,
     onSongSelect: (Song, List<Song>) -> Unit,
-    onLikeClick: (Song) -> Unit
+    onLikeClick: (Song) -> Unit,
+    onRemoveSong: (Song) -> Unit
 ) {
+    val songToRemove = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<Song?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -112,9 +115,35 @@ fun PlaylistDetailScreen(
                 SongListItem(
                     song = song,
                     onClick = { onSongSelect(song, songs) },
-                    onLikeClick = { onLikeClick(song) }
+                    onLikeClick = { onLikeClick(song) },
+                    onLongClick = { songToRemove.value = song }
                 )
             }
         }
+    }
+
+    if (songToRemove.value != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { songToRemove.value = null },
+            title = { Text("Remove Song", color = TextPrimary) },
+            text = { Text("Remove '${songToRemove.value?.title}' from this playlist?", color = TextMuted) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        songToRemove.value?.let { onRemoveSong(it) }
+                        songToRemove.value = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color.Red)
+                ) {
+                    Text("Remove")
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { songToRemove.value = null }) {
+                    Text("Cancel", color = TextMuted)
+                }
+            },
+            containerColor = com.echostream.app.ui.theme.SurfaceDark
+        )
     }
 }

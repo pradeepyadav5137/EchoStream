@@ -229,6 +229,9 @@ fun EchoStreamNavGraph(
                             },
                             onLikeClick = { song ->
                                 homeViewModel.toggleLike(song)
+                            },
+                            onRemoveSong = { song ->
+                                libraryViewModel.removeSongFromPlaylist(playlistId, song.id)
                             }
                         )
                     }

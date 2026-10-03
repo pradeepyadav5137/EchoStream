@@ -2,6 +2,7 @@ package com.echostream.app.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -73,6 +74,7 @@ fun LibraryScreen(
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     var showCreateDialog by remember { mutableStateOf(false) }
     var newPlaylistName by remember { mutableStateOf("") }
+    var playlistToDelete by remember { mutableStateOf<Playlist?>(null) }
 
     val tabs = listOf("Liked Songs", "Downloads", "Playlists", "History")
 
@@ -134,7 +136,12 @@ fun LibraryScreen(
         when (selectedTabIndex) {
             0 -> SongListTab(songs = likedSongs, emptyMessage = "No liked songs yet.", onSongSelect = onSongSelect, onLikeClick = { viewModel.toggleLike(it) })
             1 -> SongListTab(songs = downloadedSongs, emptyMessage = "No downloaded songs available offline.", onSongSelect = onSongSelect, onLikeClick = { viewModel.toggleLike(it) })
-            2 -> PlaylistsTab(playlists = playlists, onPlaylistClick = onPlaylistClick, onCreateClick = { showCreateDialog = true })
+            2 -> PlaylistsTab(
+                playlists = playlists,
+                onPlaylistClick = onPlaylistClick,
+                onCreateClick = { showCreateDialog = true },
+                onDeleteClick = { playlistToDelete = it }
+            )
             3 -> SongListTab(songs = recentlyPlayed, emptyMessage = "No recently played tracks.", onSongSelect = onSongSelect, onLikeClick = { viewModel.toggleLike(it) })
         }
     }
@@ -167,6 +174,33 @@ fun LibraryScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showCreateDialog = false }) {
+                    Text("Cancel", color = TextMuted)
+                }
+            },
+            containerColor = SurfaceDark
+        )
+    }
+
+    if (playlistToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { playlistToDelete = null },
+            title = { Text("Delete Playlist", color = TextPrimary) },
+            text = { Text("Are you sure you want to delete '${playlistToDelete?.name}'?", color = TextMuted) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        playlistToDelete?.let {
+                            viewModel.deletePlaylist(it.id)
+                        }
+                        playlistToDelete = null
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = androidx.compose.ui.graphics.Color.Red)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { playlistToDelete = null }) {
                     Text("Cancel", color = TextMuted)
                 }
             },
@@ -207,11 +241,13 @@ fun SongListTab(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun PlaylistsTab(
     playlists: List<Playlist>,
     onPlaylistClick: (String) -> Unit,
-    onCreateClick: () -> Unit
+    onCreateClick: () -> Unit,
+    onDeleteClick: (Playlist) -> Unit
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -224,7 +260,10 @@ fun PlaylistsTab(
                     .padding(vertical = 8.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(CardBackground)
-                    .clickable { onPlaylistClick(pl.id) }
+                    .combinedClickable(
+                        onClick = { onPlaylistClick(pl.id) },
+                        onLongClick = { onDeleteClick(pl) }
+                    )
                     .padding(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {

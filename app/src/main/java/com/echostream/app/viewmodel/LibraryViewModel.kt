@@ -62,6 +62,12 @@ class LibraryViewModel(
         }
     }
 
+    fun removeSongFromPlaylist(playlistId: String, songId: String) {
+        viewModelScope.launch {
+            playlistRepository.removeSongFromPlaylist(playlistId, songId)
+        }
+    }
+
     fun toggleLike(song: Song) {
         viewModelScope.launch {
             musicRepository.toggleLike(song)
