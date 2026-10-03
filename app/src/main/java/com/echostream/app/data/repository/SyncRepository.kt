@@ -45,12 +45,12 @@ class SyncRepository(
             val allLikes = likeDao.getLikedSongsSync()
             Log.d(TAG, "forceUpload: Found ${allLikes.size} liked songs to upload")
             for (song in allLikes) {
-                val payload = mapOf<String, Any>(
+                val payload = mapOf<String, String>(
                     "title" to song.title,
                     "artist" to song.artist,
                     "album" to song.album,
                     "thumbnail" to song.artworkUrl,
-                    "duration" to song.duration,
+                    "duration" to song.duration.toString(),
                     "source" to "youtube"
                 )
                 try {
@@ -84,14 +84,15 @@ class SyncRepository(
             for (hist in allHistory) {
                 val song = songDao.getSongById(hist.songId)
                 if (song != null) {
-                    val payload = mapOf<String, Any>(
+                    val payload = mapOf<String, String>(
                         "songId" to song.id,
                         "title" to song.title,
                         "artist" to song.artist,
                         "album" to song.album,
                         "thumbnail" to song.artworkUrl,
-                        "duration" to song.duration,
-                        "durationPlayed" to hist.durationPlayed
+                        "duration" to song.duration.toString(),
+                        "durationPlayed" to hist.durationPlayed.toString(),
+                        "playedAt" to hist.playedAt.toString()
                     )
                     try {
                         val response = echoStreamApi.addHistory(payload)
@@ -118,10 +119,10 @@ class SyncRepository(
             val playlists = playlistDao.getAllPlaylistsSync()
             Log.d(TAG, "forceUpload: Found ${playlists.size} playlists to upload")
             for (pl in playlists) {
-                val plPayload = mapOf<String, Any>(
+                val plPayload = mapOf<String, String>(
                     "name" to pl.name,
                     "description" to pl.description,
-                    "isPublic" to true,
+                    "isPublic" to "true",
                     "artworkUrl" to pl.artworkUrl
                 )
                 try {
@@ -129,6 +130,19 @@ class SyncRepository(
                     if (response.isSuccessful) {
                         playlistsUploaded++
                         Log.d(TAG, "forceUpload: Uploaded playlist '${pl.name}'")
+                        
+                        // Add songs to the playlist
+                        val serverId = (response.body()?.get("playlist") as? Map<*, *>)?.get("_id") as? String
+                        if (serverId != null) {
+                            val songs = playlistDao.getSongsForPlaylistSync(pl.id)
+                            for (song in songs) {
+                                try {
+                                    echoStreamApi.addSongToPlaylist(serverId, mapOf("songId" to song.id))
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "forceUpload: Failed to add song '${song.title}' to playlist '${pl.name}'", e)
+                                }
+                            }
+                        }
                     } else {
                         errors++
                         lastError = "Playlist HTTP ${response.code()}: ${response.errorBody()?.string()}"
@@ -176,7 +190,7 @@ class SyncRepository(
                         "LIKE" -> {
                             val songId = payload["songId"] as? String
                             if (songId != null) {
-                                val response = echoStreamApi.addFavorite(songId, payload)
+                                val response = echoStreamApi.addFavorite(songId, payload.mapValues { it.value.toString() })
                                 if (!response.isSuccessful && response.code() != 400) {
                                     Log.e(TAG, "performSync: LIKE failed for $songId, HTTP ${response.code()}")
                                     throw Exception("API error")
@@ -191,11 +205,11 @@ class SyncRepository(
                             }
                         }
                         "HISTORY" -> {
-                            val response = echoStreamApi.addHistory(payload)
+                            val response = echoStreamApi.addHistory(payload.mapValues { it.value.toString() })
                             if (!response.isSuccessful) throw Exception("API error")
                         }
                         "CREATE_PLAYLIST" -> {
-                            val response = echoStreamApi.createPlaylist(payload)
+                            val response = echoStreamApi.createPlaylist(payload.mapValues { it.value.toString() })
                             if (!response.isSuccessful) throw Exception("API error")
                         }
                         "ADD_PLAYLIST_SONG" -> {
@@ -351,6 +365,14 @@ class SyncRepository(
                         histData.forEach { h ->
                             val sId = h["songId"] as? String
                             val durationPlayed = (h["durationPlayed"] as? Number)?.toInt() ?: 0
+                            val playedAt = (h["playedAt"] as? String)?.let {
+                                try {
+                                    java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply { 
+                                        timeZone = java.util.TimeZone.getTimeZone("UTC") 
+                                    }.parse(it)?.time
+                                } catch (e: Exception) { null }
+                            } ?: System.currentTimeMillis()
+
                             if (sId != null) {
                                 val songTitle = h["title"] as? String ?: "Unknown"
                                 val songArtist = h["artist"] as? String ?: "Unknown"
@@ -376,7 +398,7 @@ class SyncRepository(
                                 historyDao.insertHistory(
                                     com.echostream.app.data.local.entity.HistoryEntity(
                                         songId = sId,
-                                        playedAt = System.currentTimeMillis(),
+                                        playedAt = playedAt,
                                         durationPlayed = durationPlayed
                                     )
                                 )

@@ -92,6 +92,16 @@ class HomeViewModel(private val musicRepository: MusicRepository) : ViewModel() 
             _isLoading.value = true
             try {
                 musicRepository.refreshSongs()
+                musicRepository.getRecommendedSections().collect { sections ->
+                    val songs = mutableListOf<Song>()
+                    sections.forEach { section ->
+                        val sectionSongs = section["songs"] as? List<Song>
+                        if (sectionSongs != null) {
+                            songs.addAll(sectionSongs)
+                        }
+                    }
+                    (recommendedSongs as MutableStateFlow).value = songs
+                }
             } catch (_: Exception) {
             } finally {
                 _isLoading.value = false

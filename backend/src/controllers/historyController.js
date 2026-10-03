@@ -2,14 +2,15 @@ const History = require('../models/History');
 
 const addHistory = async (req, res) => {
   try {
-    const { songId, title, artist, album, thumbnail, duration, durationPlayed, source } = req.body;
+    const { songId, title, artist, album, thumbnail, duration, durationPlayed, source, playedAt } = req.body;
     
     // Remove previous instance if exists to avoid duplicates
     await History.findOneAndDelete({ userId: req.user.id, songId });
 
     const history = new History({
       userId: req.user.id,
-      songId, title, artist, album, thumbnail, duration, durationPlayed, source
+      songId, title, artist, album, thumbnail, duration, durationPlayed, source,
+      playedAt: playedAt ? new Date(Number(playedAt)) : Date.now()
     });
     await history.save();
 

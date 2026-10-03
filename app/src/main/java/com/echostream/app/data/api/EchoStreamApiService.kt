@@ -61,19 +61,19 @@ interface EchoStreamApiService {
     suspend fun getPlaylists(): Response<Map<String, Any>>
 
     @POST("api/playlists")
-    suspend fun createPlaylist(@Body body: Map<String, Any>): Response<Map<String, Any>>
+    suspend fun createPlaylist(@Body body: Map<String, String>): Response<Map<String, Any>>
 
     @GET("api/playlists/{id}")
     suspend fun getPlaylistById(@Path("id") id: String): Response<Map<String, Any>>
 
     @PATCH("api/playlists/{id}")
-    suspend fun updatePlaylist(@Path("id") id: String, @Body body: Map<String, Any>): Response<Map<String, Any>>
+    suspend fun updatePlaylist(@Path("id") id: String, @Body body: Map<String, String>): Response<Map<String, Any>>
 
     @DELETE("api/playlists/{id}")
     suspend fun deletePlaylist(@Path("id") id: String): Response<Map<String, Any>>
 
     @POST("api/playlists/{id}/songs")
-    suspend fun addSongToPlaylist(@Path("id") id: String, @Body body: Map<String, Any>): Response<Map<String, Any>>
+    suspend fun addSongToPlaylist(@Path("id") id: String, @Body body: Map<String, String>): Response<Map<String, Any>>
 
     @DELETE("api/playlists/{id}/songs/{songId}")
     suspend fun removeSongFromPlaylist(@Path("id") id: String, @Path("songId") songId: String): Response<Map<String, Any>>
@@ -83,7 +83,7 @@ interface EchoStreamApiService {
     suspend fun getFavorites(): Response<Map<String, Any>>
 
     @POST("api/favorites/{songId}")
-    suspend fun addFavorite(@Path("songId") songId: String, @Body body: Map<String, Any>): Response<Map<String, Any>>
+    suspend fun addFavorite(@Path("songId") songId: String, @Body body: Map<String, String>): Response<Map<String, Any>>
 
     @DELETE("api/favorites/{songId}")
     suspend fun removeFavorite(@Path("songId") songId: String): Response<Map<String, Any>>
@@ -93,7 +93,7 @@ interface EchoStreamApiService {
     suspend fun getHistory(): Response<Map<String, Any>>
 
     @POST("api/history")
-    suspend fun addHistory(@Body body: Map<String, Any>): Response<Map<String, Any>>
+    suspend fun addHistory(@Body body: Map<String, String>): Response<Map<String, Any>>
 
     @DELETE("api/history")
     suspend fun clearHistory(): Response<Map<String, Any>>

@@ -161,24 +161,24 @@ class MusicRepository(
         if (newLikedState) {
             likeDao.insertLike(LikeEntity(songId = song.id))
             try {
-                val response = echoStreamApi.addFavorite(song.id, mapOf(
+                val response = echoStreamApi.addFavorite(song.id, mapOf<String, String>(
                     "title" to song.title,
                     "artist" to song.artist,
                     "album" to song.album,
                     "thumbnail" to song.artworkUrl,
-                    "duration" to song.duration,
+                    "duration" to song.duration.toString(),
                     "source" to "youtube"
                 ))
                 if (!response.isSuccessful) throw Exception("API error")
             } catch (e: Exception) {
                 pendingSyncDao.insertPendingAction(
-                    PendingSyncEntity(type = "LIKE", payloadJson = gson.toJson(mapOf(
+                    PendingSyncEntity(type = "LIKE", payloadJson = gson.toJson(mapOf<String, String>(
                         "songId" to song.id,
                         "title" to song.title,
                         "artist" to song.artist,
                         "album" to song.album,
                         "thumbnail" to song.artworkUrl,
-                        "duration" to song.duration,
+                        "duration" to song.duration.toString(),
                         "source" to "youtube"
                     )))
                 )
@@ -202,14 +202,14 @@ class MusicRepository(
         songDao.insertSong(SongEntity.fromSong(song))
         historyDao.insertHistory(HistoryEntity(songId = song.id, durationPlayed = durationPlayed))
         
-        val payload = mapOf(
+        val payload = mapOf<String, String>(
             "songId" to song.id,
             "title" to song.title,
             "artist" to song.artist,
             "album" to song.album,
             "thumbnail" to song.artworkUrl,
-            "duration" to song.duration, // Backend expects full duration as 'duration'
-            "durationPlayed" to durationPlayed
+            "duration" to song.duration.toString(), // Backend expects full duration as 'duration'
+            "durationPlayed" to durationPlayed.toString()
         )
         
         try {

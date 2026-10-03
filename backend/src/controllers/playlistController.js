@@ -5,6 +5,15 @@ const createPlaylist = async (req, res) => {
     const { name, description } = req.body;
     if (!name) return res.status(400).json({ success: false, message: 'Name is required' });
 
+    let playlist = await Playlist.findOne({ userId: req.user.id, name });
+    if (playlist) {
+      if (description) {
+        playlist.description = description;
+        await playlist.save();
+      }
+      return res.status(200).json({ success: true, playlist });
+    }
+
     const newPlaylist = new Playlist({
       userId: req.user.id,
       name,

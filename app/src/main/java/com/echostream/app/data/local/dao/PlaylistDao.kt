@@ -46,6 +46,14 @@ interface PlaylistDao {
     """)
     fun getSongsForPlaylist(playlistId: String): Flow<List<SongEntity>>
 
+    @Query("""
+        SELECT s.* FROM songs s
+        INNER JOIN playlist_songs ps ON s.id = ps.songId
+        WHERE ps.playlistId = :playlistId
+        ORDER BY ps.addedAt ASC
+    """)
+    suspend fun getSongsForPlaylistSync(playlistId: String): List<SongEntity>
+
     @Query("DELETE FROM playlists")
     suspend fun clearAllPlaylists()
 
