@@ -137,7 +137,16 @@ class SyncRepository(
                             val songs = playlistDao.getSongsForPlaylistSync(pl.id)
                             for (song in songs) {
                                 try {
-                                    echoStreamApi.addSongToPlaylist(serverId, mapOf("songId" to song.id))
+                                    val songPayload = mapOf<String, String>(
+                                        "songId" to song.id,
+                                        "title" to song.title,
+                                        "artist" to song.artist,
+                                        "album" to song.album,
+                                        "thumbnail" to song.artworkUrl,
+                                        "duration" to song.duration.toString(),
+                                        "source" to "youtube"
+                                    )
+                                    echoStreamApi.addSongToPlaylist(serverId, songPayload)
                                 } catch (e: Exception) {
                                     Log.e(TAG, "forceUpload: Failed to add song '${song.title}' to playlist '${pl.name}'", e)
                                 }
@@ -216,8 +225,23 @@ class SyncRepository(
                             val playlistId = payload["playlistId"] as? String
                             val songId = payload["songId"] as? String
                             if (playlistId != null && songId != null) {
-                                val response = echoStreamApi.addSongToPlaylist(playlistId, mapOf("songId" to songId))
-                                if (!response.isSuccessful) throw Exception("API error")
+                                val song = songDao.getSongById(songId)
+                                if (song != null) {
+                                    val songPayload = mapOf<String, String>(
+                                        "songId" to song.id,
+                                        "title" to song.title,
+                                        "artist" to song.artist,
+                                        "album" to song.album,
+                                        "thumbnail" to song.artworkUrl,
+                                        "duration" to song.duration.toString(),
+                                        "source" to "youtube"
+                                    )
+                                    val response = echoStreamApi.addSongToPlaylist(playlistId, songPayload)
+                                    if (!response.isSuccessful) throw Exception("API error")
+                                } else {
+                                    val response = echoStreamApi.addSongToPlaylist(playlistId, mapOf("songId" to songId))
+                                    if (!response.isSuccessful) throw Exception("API error")
+                                }
                             }
                         }
                         "REMOVE_PLAYLIST_SONG" -> {
